@@ -1,0 +1,40 @@
+Traceback (most recent call last):
+  File "N:\researchgroups\gopto\OPTODOCS\1Leo\pbwx\main.py", line 69, in <module>
+    main()
+  File "N:\researchgroups\gopto\OPTODOCS\1Leo\pbwx\main.py", line 64, in main
+    frame = AppFrame(None)
+  File "N:\researchgroups\gopto\OPTODOCS\1Leo\pbwx\main.py", line 11, in __init__
+    self.init_ui()
+  File "N:\researchgroups\gopto\OPTODOCS\1Leo\pbwx\main.py", line 34, in init_ui
+    flag=wx.EXPAND|wx.LEFT|wx.ALIGN_MIDDLE, border=5)
+AttributeError: module 'wx' has no attribute 'ALIGN_MIDDLE'
+Traceback (most recent call last):
+  File "N:\researchgroups\gopto\OPTODOCS\1Leo\pbwx\main.py", line 69, in <module>
+    main()
+  File "N:\researchgroups\gopto\OPTODOCS\1Leo\pbwx\main.py", line 64, in main
+    frame = AppFrame(None)
+  File "N:\researchgroups\gopto\OPTODOCS\1Leo\pbwx\main.py", line 11, in __init__
+    self.init_ui()
+  File "N:\researchgroups\gopto\OPTODOCS\1Leo\pbwx\main.py", line 33, in init_ui
+    vbox_right.Add(pulse_tools_bs,
+wx._core.wxAssertionError: C++ assertion "!(flags & (wxALIGN_RIGHT | wxALIGN_CENTRE_HORIZONTAL))" failed at ..\..\src\common\sizer.cpp(2159) in wxBoxSizer::DoInsert(): Horizontal alignment flags are ignored with wxEXPAND
+Traceback (most recent call last):
+  File "N:\researchgroups\gopto\OPTODOCS\1Leo\pbwx\main.py", line 69, in <module>
+    main()
+  File "N:\researchgroups\gopto\OPTODOCS\1Leo\pbwx\main.py", line 64, in main
+    frame = AppFrame(None)
+  File "N:\researchgroups\gopto\OPTODOCS\1Leo\pbwx\main.py", line 11, in __init__
+    self.init_ui()
+  File "N:\researchgroups\gopto\OPTODOCS\1Leo\pbwx\main.py", line 33, in init_ui
+    vbox_right.Add(pulse_tools_bs,
+wx._core.wxAssertionError: C++ assertion "!(flags & wxALIGN_CENTRE_VERTICAL)" failed at ..\..\src\common\sizer.cpp(2147) in wxBoxSizer::DoInsert(): Vertical alignment flags are ignored in vertical sizers
+Traceback (most recent call last):
+  File "N:\researchgroups\gopto\OPTODOCS\1Leo\pbwx\main.py", line 69, in <module>
+    main()
+  File "N:\researchgroups\gopto\OPTODOCS\1Leo\pbwx\main.py", line 64, in main
+    frame = AppFrame(None)
+  File "N:\researchgroups\gopto\OPTODOCS\1Leo\pbwx\main.py", line 11, in __init__
+    self.init_ui()
+  File "N:\researchgroups\gopto\OPTODOCS\1Leo\pbwx\main.py", line 42, in init_ui
+    vbox_right.Add(button_hbox, flag=wx.ALIGN_CENTER_VERTICAL)
+wx._core.wxAssertionError: C++ assertion "!(flags & wxALIGN_CENTRE_VERTICAL)" failed at ..\..\src\common\sizer.cpp(2147) in wxBoxSizer::DoInsert(): Vertical alignment flags are ignored in vertical sizers

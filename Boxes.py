@@ -12,8 +12,6 @@ class SelectPulseStaticBox(wx.StaticBoxSizer):
         self.init_UI()
         
     def init_UI(self):
-        sb = wx.StaticBox(self.parent, label="Select Pulse Sequence")
-
         try:
             pulse_list = os.listdir(self.root_folder)
         except FileNotFoundError:
@@ -34,7 +32,20 @@ class SetParameterBox(wx.StaticBoxSizer):
         super(SetParameterBox, self).__init__(sb, wx.VERTICAL, *args, **kwargs)
         self.parent = parent
 
+        self.init_UI()
+
     def init_UI(self):
         tb = wx.StaticText(self.parent, label="Static Text Field")
         self.Add(tb)
     
+class PulseToolsBox(wx.StaticBoxSizer):
+    def __init__(self, parent, *args, **kwargs):
+        sb = wx.StaticBox(parent, label="Pulse Tools")
+        super(PulseToolsBox, self).__init__(sb, *args, **kwargs) # Leaving out wx.V/H because it doesn't matter
+        self.parent = parent
+
+        self.init_UI()
+
+    def init_UI(self):
+        tb = wx.StaticText(self.parent, label="Another static text field.")
+        self.Add(tb)
