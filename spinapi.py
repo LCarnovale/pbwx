@@ -17,6 +17,22 @@
 # misrepresented as being the original software.
 # 3. This notice may not be removed or altered from any source distribution.
 
+class spinapi_debug:
+	# def __init__(self):
+	def __getattr__(self, name: str):
+		# Return another debug object to account for daisy chained calls
+		return spinapi_debug()
+	
+	def __setattr__(self, name: str, value) -> None:
+		pass
+
+	def __call__(self, *args, **kwargs):
+		return 1
+	
+	def __str__(self):
+		return "None"
+
+
 import ctypes
 
 PULSE_PROGRAM = 0
@@ -29,6 +45,8 @@ except:
 		spinapi = ctypes.CDLL("spinapi")
 	except:
 		print("Failed to load spinapi library.")
+		print("Using spinapi TEST MODE")
+		spinapi = spinapi_debug()
 		pass
 	
 def enum(**enums):
