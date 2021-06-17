@@ -4,15 +4,16 @@ from astropy import units as u
 import matplotlib.pyplot as plt
 from scipy import interpolate
 
-try:
-    from spinapi import *
-except ImportError:
-    try:
-        from pbwx.spinapi import *
-    except ImportError as e:
-        e.msg = "Unable to find spinapi module in " \
-                "pbwx package or local directory."
-        raise e
+from spinapi import *
+# try:
+# except ImportError:
+#     raise Exception()
+#     try:
+#         from pbwx.spinapi import *
+#     except ImportError as e:
+#         e.msg = "Unable to find spinapi module in " \
+#                 "pbwx package or local directory."
+#         raise e
         
     
 
