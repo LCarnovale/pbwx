@@ -37,7 +37,9 @@ import ctypes
 
 PULSE_PROGRAM = 0
 FREQ_REGS = 1  
-   
+
+DBG_MODE = False
+
 try:
 	spinapi = ctypes.CDLL("C:\SpinCore\SpinAPI\lib\spinapi64.dll")
 except:
@@ -46,6 +48,7 @@ except:
 	except:
 		print("Failed to load spinapi library.")
 		print("Using spinapi TEST MODE")
+		DBG_MODE = True
 		spinapi = spinapi_debug()
 		pass
 	
@@ -148,76 +151,115 @@ spinapi.pb_inst_dds2.argtype = (
 )
 spinapi.pb_inst_dds2.restype = (ctypes.c_int)
 
-def pb_get_version():
-	"""Return library version as UTF-8 encoded string."""
-	ret = spinapi.pb_get_version()
-	return str(ctypes.c_char_p(ret).value.decode("utf-8"))
+if not DBG_MODE:
+	def pb_get_version():
+		"""Return library version as UTF-8 encoded string."""
+		ret = spinapi.pb_get_version()
+		return str(ctypes.c_char_p(ret).value.decode("utf-8"))
 
-def pb_get_error():
-	"""Return library error as UTF-8 encoded string."""
-	ret = spinapi.pb_get_error()
-	return str(ctypes.c_char_p(ret).value.decode("utf-8"))
-	
-def pb_count_boards():
-	"""Return the number of boards detected in the system."""
-	return spinapi.pb_count_boards()
-	
-def pb_init():
-	"""Initialize currently selected board."""
-	return spinapi.pb_init()
-	
-def pb_set_debug(debug):
-	return spinapi.pb_set_debug(debug)
-	
-def pb_select_board(board_number):
-	"""Select a specific board number"""
-	return spinapi.pb_select_board(board_number)
-	
-def pb_set_defaults():
-	"""Set board defaults. Must be called before using any other board functions."""
-	return spinapi.pb_set_defaults()
-	
-def pb_core_clock(clock):
-	return spinapi.pb_core_clock(ctypes.c_double(clock))
-	
-def pb_write_register(address, value):
-	return spinapi.pb_write_register(address, value)
-	
-def pb_start_programming(target):
-	return spinapi.pb_start_programming(target)
+	def pb_get_error():
+		"""Return library error as UTF-8 encoded string."""
+		ret = spinapi.pb_get_error()
+		return str(ctypes.c_char_p(ret).value.decode("utf-8"))
+		
+	def pb_count_boards():
+		"""Return the number of boards detected in the system."""
+		return spinapi.pb_count_boards()
+		
+	def pb_init():
+		"""Initialize currently selected board."""
+		return spinapi.pb_init()
+		
+	def pb_set_debug(debug):
+		return spinapi.pb_set_debug(debug)
+		
+	def pb_select_board(board_number):
+		"""Select a specific board number"""
+		return spinapi.pb_select_board(board_number)
+		
+	def pb_set_defaults():
+		"""Set board defaults. Must be called before using any other board functions."""
+		return spinapi.pb_set_defaults()
+		
+	def pb_core_clock(clock):
+		return spinapi.pb_core_clock(ctypes.c_double(clock))
+		
+	def pb_write_register(address, value):
+		return spinapi.pb_write_register(address, value)
+		
+	def pb_start_programming(target):
+		return spinapi.pb_start_programming(target)
 
-def pb_stop_programming():
-	return spinapi.pb_stop_programming()
+	def pb_stop_programming():
+		return spinapi.pb_stop_programming()
 
-def pb_inst_pbonly(*args):
-        t = list(args)
-        #Argument 3 must be a double
-        t[3] = ctypes.c_double(t[3])
-        args = tuple(t)
-        return spinapi.pb_inst_pbonly(*args)
+	def pb_inst_pbonly(*args):
+			t = list(args)
+			#Argument 3 must be a double
+			t[3] = ctypes.c_double(t[3])
+			args = tuple(t)
+			return spinapi.pb_inst_pbonly(*args)
 
-def pb_inst_radio(*args):
-        t = list(args)
-        #Argument 10 must be a double
-        t[10] = ctypes.c_double(t[10])
-        args = tuple(t)
-        return spinapi.pb_inst_radio(*args)
-	
-def pb_inst_dds2(*args):
-	t = list(args)
-	#Argument 13 must be a double
-	t[13] = ctypes.c_double(t[13])
-	args = tuple(t)
-	return spinapi.pb_inst_dds2(*args)
+	def pb_inst_radio(*args):
+			t = list(args)
+			#Argument 10 must be a double
+			t[10] = ctypes.c_double(t[10])
+			args = tuple(t)
+			return spinapi.pb_inst_radio(*args)
+		
+	def pb_inst_dds2(*args):
+		t = list(args)
+		#Argument 13 must be a double
+		t[13] = ctypes.c_double(t[13])
+		args = tuple(t)
+		return spinapi.pb_inst_dds2(*args)
 
-def pb_start():
-	return spinapi.pb_start()
+	def pb_start():
+		return spinapi.pb_start()
+		
+	def pb_stop():
+		return spinapi.pb_stop()
+		
+	def pb_reset(): 
+		return spinapi.pb_reset()
+		
+	def pb_close():
+		return spinapi.pb_close()
 	
-def pb_stop():
-	return spinapi.pb_stop()
-	
-def pb_reset(): 
-	return spinapi.pb_reset()
-	
-def pb_close():
-	return spinapi.pb_close()
+else:
+	def pb_get_version():
+		return "1"
+	def pb_get_error():
+		return "1"
+	def pb_count_boards():
+		return 1
+	def pb_init():
+		return 0
+	def pb_set_debug(*args):
+		return 1
+	def pb_select_board(*args):
+		return 1
+	def pb_set_defaults():
+		return 1
+	def pb_core_clock(*args):
+		return 1
+	def pb_write_register(*args):
+		return 1
+	def pb_start_programming(*args):
+		return 1
+	def pb_stop_programming():
+		return 1
+	def pb_inst_pbonly(*args):
+		return 1
+	def pb_inst_radio(*args):
+		return 1
+	def pb_inst_dds2(*args):
+		return 1
+	def pb_start():
+		return 1
+	def pb_stop():
+		return 1
+	def pb_reset():
+		return 1
+	def pb_close():
+		return 1

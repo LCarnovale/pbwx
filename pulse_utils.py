@@ -1,9 +1,24 @@
 import threading
-
-from spinapi import *
 import numpy as np
+from astropy import units as u
+import matplotlib.pyplot as plt
+from scipy import interpolate
 
-SAFE_MODE = False
+try:
+    from spinapi import *
+except ImportError:
+    try:
+        from pbwx.spinapi import *
+    except ImportError as e:
+        e.msg = "Unable to find spinapi module in " \
+                "pbwx package or local directory."
+        raise e
+        
+    
+
+SAFE_MODE = True
+if SAFE_MODE:
+    print("SAFE_MODE is enabled, the board will not be programmed.")
 
 # # Configure the core clock
 # pb_core_clock(500)
@@ -38,6 +53,7 @@ def init_board():
 def check_board_init():
     if not SequenceProgram.board_initialised:
         raise Exception("The board has not yet been initialised (call 'init_board()')")
+
 
 class SequenceProgram(threading.Thread):
     prog_mode = False
@@ -108,26 +124,58 @@ class SequenceProgram(threading.Thread):
         check_board_init()
         if not self.in_prog:
             raise Exception("Must be in programming mode before adding instructions.")
-        inst = (
-            ctypes.c_int(flags), 
-            ctypes.c_int(inst), 
-            ctypes.c_int(inst_data), 
-            (length)
-        )
+        try:
+            inst = (
+                ctypes.c_int(flags), 
+                ctypes.c_int(inst), 
+                ctypes.c_int(inst_data), 
+                (length)
+            )
+        except Exception as e:
+            raise TypeError("Type conversion failed. Values:\n" 
+                f"flags: 0b{flags:b}\n"
+                f"inst:  {inst}\n"
+                f"inst_data:  {inst_data}\n"
+                f"length:  {length}\n"
+                "Message: "+str(e))
         # self.inst_seq.append(inst)
-        print(inst)
+        print(f"[{flags:b}]", *inst[1:])
         # print([type(x) for x in inst])
         if not SAFE_MODE:
             return pb_inst_pbonly(*inst)
         else:
             return 0
 
+class EmptyController:
+    def __init__(self):
+        pass
+
+    def __call__(self):
+        raise Exception("Controller for this pulse sequence has not yet been set.")
+
+    def __getattribute__(self, name: str):
+        self()
+
+class DebugController:
+    def __init__(self, name="DebugController"):
+        self.name = name
+        pass
+
+    def __call__(self, *args, **kwargs):
+        self.calling
+    
+    def __getattr__(self, name: str):
+        print(f"{self.name}: {name}")
+        return DebugController(name=self.name+"."+name)
+
 
 class PulseSequence:
-    def __init__(self, controller, pre_delay=0, post_delay=0, loop=0, cycle=False):
+    def __init__(self, controller, loop=0, cycle=False):
         """ Create a Pulse Sequence object. 
 
         `controller` must be a SequenceProgram object, to allow communication to the board.
+        It can if needed be left as `None`, but must be set via
+        `ps.set_controller()` before making any programming calls.
 
         Set `loop=0` for no looping, otherwise give the number of times
         this sequence should be repeated.
@@ -135,14 +183,16 @@ class PulseSequence:
         Alternatively, set `cycle=True` to make the sequence branch back
         to the beginning, making an infinite loop.
         """
-        self.controller = controller
+        if controller == None:
+            controller = EmptyController()
+        self._controller = controller
         self.n_bits = 24
-        # self.pre_delay = pre_delay
-        # self.post_delay = post_delay
         self.loop = loop
-        # self.end_time = 0
-        self.sequence = []
-        # self.start_addr = 0
+        self.cycle = cycle             
+        self._sequence = []            # Sequence of pulse objects
+
+    def set_controller(self, controller):
+        self._controller = controller
 
     def add_raw(self, raw_seq):
         if type(raw_seq) is not RawSequence:
@@ -150,7 +200,13 @@ class PulseSequence:
 
         # # Create frames
         # t_ax, frames = raw_seq._merge_sequences()
-        self.sequence.append(raw_seq)
+        self._sequence.append(raw_seq)
+
+    
+    @property
+    def controller(self):
+        return self._controller
+
 
 
 
@@ -194,14 +250,14 @@ class RawSequence(PulseSequence):
         pin_sets = [flags_to_number(f) for f in frames]
         # t_lens = (t_ax[1:] - t_ax[:-1])
         t_lens = t_ax
-        self.controller.prog_enter()
+        self._controller.prog_enter()
 
         err = 0
         try:
         # TODO: Loops? Jumps?
            # Add the starting frame
             start = self.controller.add_instruction(
-                0x0, Inst.CONTINUE, 0, t_lens[0]
+                pin_sets[0], Inst.CONTINUE, 0, t_lens[0]
             )
             # Add the other frames
             for p, dt in zip(pin_sets[1:-1], t_lens[1:-1]):
@@ -222,7 +278,20 @@ class RawSequence(PulseSequence):
                 print("Programming completed successfully.")
             self.controller.prog_exit()
 
-        
+    def plot_sequence(self):
+        t_ax, frames = self._merge_sequences()
+        nonz_flags = np.array([k for k, v in self.flag_seqs.items() if v is not None])
+        t_ax = t_ax.cumsum()
+        if t_ax[0] != 0:
+            t_ax = np.concatenate([[0], t_ax])
+            frames = np.concatenate([frames[[0]], frames[:]], axis=0)
+        flag_nums = np.arange(frames.shape[1])
+        frames = frames[:,nonz_flags]
+        flag_nums = flag_nums[nonz_flags]
+        plot_shifts = np.arange(len(nonz_flags))
+        plt.plot(t_ax, frames + plot_shifts, drawstyle='steps-pre')
+        plt.legend([str(i) for i in flag_nums])
+        plt.show()
 
     def _merge_sequences(self):
         """ Merge the current sequences to create flag frames,
@@ -249,16 +318,24 @@ class AbstractSequence(RawSequence):
     def __init__(self, *args, **kwargs):
         super(AbstractSequence, self).__init__(*args, **kwargs)
         self.params = {}
-        # self.defaults = {}
 
     def set_param_default(self, **params):
         """ Provide a parameter and a value as a keyword argument
         to set the default value for that parameter. eg:
 
+        Units of time can be provided, otherwise values will be assumed
+        to be in nanoseconds.
+
         >>> absq.set_param_default(tau=1e2)
 
         On programming the sequence, if no new value is 
         provided for that parameter, the default will be used. """
+        for k, val in params.items():
+            try:
+                val.unit
+                params[k] = val / u.ns + 0
+            except:
+                pass
         self.params.update(**params)
 
     def add_seq(self, flags, sequences, t_rel=True):
@@ -314,9 +391,13 @@ class AbstractSequence(RawSequence):
 
             raise ValueError("Values must be provided for: %s" % missing)
 
+        # Create copy of original parameters
+        original_seqs = {
+            k:(seq.copy() if seq is not None else None) for k, seq in self.flag_seqs.items()
+        }
         # Substitute params
-        original_seqs = [seq.copy() for seq in self.flag_seqs]
-        for seq in self.flag_seqs:
+        for k, seq in self.flag_seqs.items():
+            if seq is None: continue
             for i, v in enumerate(seq):
                 if v in temp_params:
                     seq[i] = temp_params[v]
@@ -341,6 +422,7 @@ class AbstractSequence(RawSequence):
         # temp_params = self.params.copy()
         # temp_params.update(**kw_params)
         bad_params = []
+
         for p in params:
             if p in self.params:
                 kw_params[p] = self.params[p]
@@ -350,7 +432,9 @@ class AbstractSequence(RawSequence):
         if bad_params:
             raise ValueError(f"The following parameters require a value to be set for them: {bad_params}")
 
-        for seq in self.flag_seqs:
+        for k, seq in self.flag_seqs.items():
+            if seq is None:
+                continue
             for i, value in enumerate(seq):
                 if value in kw_params:
                     seq[i] = kw_params[value]
@@ -398,7 +482,7 @@ def merge_flag_seqs(sequences, relative_times=True):
         [0.1, 0.2, 0.1, 0.1]
         >>> frames
         [[0, 0], [1, 0], [1, 1], [0, 1]]
-    """
+    """        
     # Perform cum sum if needed:
     if relative_times:
         sequences = [np.cumsum(sequence) for sequence in sequences]
@@ -406,22 +490,48 @@ def merge_flag_seqs(sequences, relative_times=True):
     flat_seqs = np.unique(np.concatenate(sequences))
     # Sort time steps
     t_all = np.sort(flat_seqs)
-    # Go through each time step and determine if each flag is on or off.
     frames = []
-    for t in t_all:
-        frame = []
-        for flag in range(len(sequences)):
-            seq = sequences[flag]
-            toggles = len(np.flatnonzero(seq < t))
-            if toggles >= len(seq):
-                frame.append(FLAG_OFF)
-            elif toggles % 2 == 0:
-                # The flag is off
-                frame.append(FLAG_OFF)
-            else:
-                # The flag is on
-                frame.append(FLAG_ON)
+    toggles_full = ([(FLAG_ON if i%2 else FLAG_OFF) for i in range(len(t_all))])
+    for seq in sequences:
+        if len(seq) == 0:
+            frames.append(np.full(t_all.shape, FLAG_OFF))
+            continue
+        toggles = toggles_full[:len(seq)]
+        interp = interpolate.interp1d(
+            seq, toggles, kind="next", 
+            fill_value=(FLAG_OFF, FLAG_OFF),
+            bounds_error=False
+        )
+        frame = interp(t_all)
         frames.append(frame)
+
+    frames = np.array(frames)
+    if relative_times:
+        frames = frames[:,:] # The first frame is always all off
+        t_all = np.diff(t_all, prepend=0)
+        nonz_ts = t_all != 0
+        frames = frames[:, nonz_ts]
+        t_all = t_all[nonz_ts]
+    else:
+        print("pulse_utils.merge_flag_seqs:Warning: "
+              "I haven't checked behaviour for relative_times=False")
+    return t_all, frames.T
+        
+    # # Go through each time step and determine if each flag is on or off.
+    # for t in t_all:
+    #     frame = []
+    #     for flag in range(len(sequences)):
+    #         seq = sequences[flag]
+    #         toggles = len(np.flatnonzero(seq < t))
+    #         if toggles >= len(seq):
+    #             frame.append(FLAG_OFF)
+    #         elif toggles % 2 == 0:
+    #             # The flag is off
+    #             frame.append(FLAG_OFF)
+    #         else:
+    #             # The flag is on
+    #             frame.append(FLAG_ON)
+    #     frames.append(frame)
 
     t_list = t_all.tolist()
     # Remove duplicates
@@ -446,4 +556,5 @@ def merge_flag_seqs(sequences, relative_times=True):
 
     return t_all, frames
 
-print("Hello")
+if __name__ == "__main__":
+    print("Hello")
