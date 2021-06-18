@@ -1,12 +1,6 @@
 import numpy as np
 from astropy import units as u
 import pulse_utils as pu
-# try:
-# except ImportError:
-#     try:
-#         import pulse_utils as pu
-#     except ImportError:
-        # raise ImportError("Unable to import pulse_utils")
 
 
 def read_pulse_file(filename):

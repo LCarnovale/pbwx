@@ -3,6 +3,7 @@ import numpy as np
 from astropy import units as u
 import matplotlib.pyplot as plt
 from scipy import interpolate
+import _actions as actions
 
 from spinapi import *
 # try:
@@ -97,7 +98,7 @@ class SequenceProgram(threading.Thread):
             raise Exception("The board is currently running a sequence.")
 
         if SequenceProgram.prog_mode:
-            raise Exception("Another thread has the board in programming mode.")
+            raise Exception("The board is already in programming mode.")
         if self.in_prog:
             # Nothing to do
             pass
@@ -244,7 +245,7 @@ class RawSequence(PulseSequence):
             else:
                 self.flag_seqs[flag] = seq
     
-    def program_seq(self):
+    def program_seq(self, end_action=None):
         """ Program the Pulse Blaster board with the defined sequences.
         """
         t_ax, frames = self._merge_sequences()
@@ -255,8 +256,8 @@ class RawSequence(PulseSequence):
 
         err = 0
         try:
-        # TODO: Loops? Jumps?
-           # Add the starting frame
+            # TODO: Loops? Jumps?
+            # Add the starting frame
             start = self.controller.add_instruction(
                 pin_sets[0], Inst.CONTINUE, 0, t_lens[0]
             )
@@ -366,7 +367,7 @@ class AbstractSequence(RawSequence):
                         # Add the new parameter
                         self.params[x] = None
 
-    def program_seq(self, **params):
+    def program_seq(self, end_action=actions.CTN, **params):
         """ Program the sequence to the board. Provide values
         for parameters as keyword arguments, eg:
 
@@ -508,54 +509,14 @@ def merge_flag_seqs(sequences, relative_times=True):
 
     frames = np.array(frames)
     if relative_times:
-        frames = frames[:,:] # The first frame is always all off
         t_all = np.diff(t_all, prepend=0)
         nonz_ts = t_all != 0
         frames = frames[:, nonz_ts]
         t_all = t_all[nonz_ts]
     else:
-        print("pulse_utils.merge_flag_seqs:Warning: "
+        print("pulse_utils.merge_flag_seqs: Warning: "
               "I haven't checked behaviour for relative_times=False")
     return t_all, frames.T
         
-    # # Go through each time step and determine if each flag is on or off.
-    # for t in t_all:
-    #     frame = []
-    #     for flag in range(len(sequences)):
-    #         seq = sequences[flag]
-    #         toggles = len(np.flatnonzero(seq < t))
-    #         if toggles >= len(seq):
-    #             frame.append(FLAG_OFF)
-    #         elif toggles % 2 == 0:
-    #             # The flag is off
-    #             frame.append(FLAG_OFF)
-    #         else:
-    #             # The flag is on
-    #             frame.append(FLAG_ON)
-    #     frames.append(frame)
-
-    t_list = t_all.tolist()
-    # Remove duplicates
-    prev = None
-    for i, f in enumerate(frames[-1::-1]):
-        if prev == f:
-            frames.pop(-i-1)
-            t_list.pop(-i-1)
-        else:
-            prev = f
-    if relative_times:
-        del_count = 0
-        for i, t in enumerate(t_all.copy()):
-            if t == 0:
-                t_list.pop(i - del_count)
-                frames.pop(i - del_count)
-                del_count += 1
-
-        t_list = np.diff(t_list, prepend=0)
-    frames = np.array(frames)
-    t_all = np.array(t_list)
-
-    return t_all, frames
-
 if __name__ == "__main__":
     print("Hello")
