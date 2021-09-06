@@ -210,13 +210,34 @@ class PulseSequence:
         return self._controller
 
 
+class Marker:
+    def __init__(self):
+        # self._mark = mark
+        # self._sequence = sequence
+        self._ref = None
 
+    @property
+    def ref(self):
+        if self._ref is None:
+            raise ValueError("marker has not been set")
+        else:
+            return self._ref
 
 
 class RawSequence(PulseSequence):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, save_refs=True, **kwargs):
         super(RawSequence, self).__init__(*args, **kwargs)
         self.flag_seqs = { n:None for n in range(self.n_bits) }
+        self.save_refs = save_refs
+        self.markers = {}
+
+    def get_marker(self, frame):
+        """ Get a marker object for the specified frame. The first frame
+        is frame 0.
+        """ 
+        m = Marker()
+        self.markers[frame] = m
+        return m
 
     def add_seq(self, flags, sequences, t_rel=True):
         """ Add flag toggle times for a given flag.
@@ -225,6 +246,9 @@ class RawSequence(PulseSequence):
         ``
             ps.add_seq([10, ...], [[1, 2], ...])
         ``
+        If units are present they will be converted to nanoseconds and
+        then to scalars.
+        
         Set `t_rel` to False if the times given are absolute,
         if `t_rel` is True (default) then if there is already
         an existing sequence for a given flag, the new one will
@@ -237,6 +261,14 @@ class RawSequence(PulseSequence):
         except TypeError:
             flags = [flags]
             sequences = [sequences]
+
+        for sequence in sequences:
+            if not sequence: continue
+            for i in range(len(sequence)):
+                try:
+                    sequence[i] = sequence[i].to('ns').value 
+                except:
+                    pass
 
         for flag, seq in zip(flags, sequences):
             current = self.flag_seqs[flag]
@@ -261,18 +293,26 @@ class RawSequence(PulseSequence):
             start = self.controller.add_instruction(
                 pin_sets[0], Inst.CONTINUE, 0, t_lens[0]
             )
+            refs = [start]
             # Add the other frames
             for p, dt in zip(pin_sets[1:-1], t_lens[1:-1]):
-                self.controller.add_instruction(
-                    p, Inst.CONTINUE, 0, dt
+                refs.append(
+                    self.controller.add_instruction(
+                        p, Inst.CONTINUE, 0, dt
+                    )
                 )
             # Add the final frame, which branches back to the beginning
-            self.controller.add_instruction(
-                pin_sets[-1], Inst.BRANCH, start, t_lens[-1]
+            refs.append(
+                self.controller.add_instruction(
+                    pin_sets[-1], Inst.BRANCH, start, t_lens[-1]
+                )
             )
         except Exception as e:
             err = 1
             raise e
+        else:
+            if self.save_refs:
+                self._refs = refs
         finally:
             if err:
                 print("Aborting programming, exiting programming mode.")
@@ -312,6 +352,20 @@ class RawSequence(PulseSequence):
         
         t_ax, frames = merge_flag_seqs(flag_seqs)
         return t_ax, frames
+
+    def add_raw(self, *args, **kwargs):
+        raise NotImplementedError(f"add_raw() not available for subtype {type(self)}")
+
+    @property
+    def refs(self):
+        if self.save_refs:
+            try:
+                return self._refs
+            except AttributeError:
+                pass
+        
+        raise Exception("No programming has been done and hence no refs exist yet.")
+            
 
 class AbstractSequence(RawSequence):
     """ A sequence which can be represented using parameters, 
