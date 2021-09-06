@@ -3,6 +3,7 @@ import tkinter.ttk as ttk
 import os
 import sys
 
+from .PulseFrames import PulseShapeFrame, RepetitionsFrame
 class SelectPulseFrame(tk.LabelFrame):
     def __init__(self, parent, root_folder, *args, **kwargs):
         super(SelectPulseFrame, self).__init__(parent, *args, text='Select Pulse Sequence', **kwargs)
@@ -40,15 +41,15 @@ class SetParameterFrame(tk.LabelFrame):
     
 class PulseToolsBox(tk.LabelFrame):
     def __init__(self, parent, *args, **kwargs):
-        super(PulseToolsBox, self).__init__(parent, *args, **kwargs) # Leaving out wx.V/H because it doesn't matter
+        super(PulseToolsBox, self).__init__(parent, *args, **kwargs) 
         self.parent = parent
 
         self.init_UI()
 
     def init_UI(self):
         tabs = ttk.Notebook(self)
-        pulse_shape_tab = ttk.Frame(tabs)
-        repetitions_tab = ttk.Frame(tabs)
+        pulse_shape_tab = PulseShapeFrame(tabs)
+        repetitions_tab = RepetitionsFrame(tabs)
         tabs.add(pulse_shape_tab, text="Pulse Shape")
         tabs.add(repetitions_tab, text="Repetitions")
         tabs.pack(fill=tk.BOTH, expand=True)
