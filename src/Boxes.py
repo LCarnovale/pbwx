@@ -1,4 +1,3 @@
-import wx
 import tkinter as tk
 import tkinter.ttk as ttk
 import os
@@ -47,5 +46,9 @@ class PulseToolsBox(tk.LabelFrame):
         self.init_UI()
 
     def init_UI(self):
-        tb = tk.Label(self, text="Another static text field.")
-        tb.grid(row=0, column=0, sticky=tk.W)
+        tabs = ttk.Notebook(self)
+        pulse_shape_tab = ttk.Frame(tabs)
+        repetitions_tab = ttk.Frame(tabs)
+        tabs.add(pulse_shape_tab, text="Pulse Shape")
+        tabs.add(repetitions_tab, text="Repetitions")
+        tabs.pack(fill=tk.BOTH, expand=True)

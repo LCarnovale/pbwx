@@ -1,5 +1,7 @@
 import abc
-from spinapi import Inst
+
+from .spinapi import Inst
+
 
 def enum(**enums):
     return type('Enum', (), enums)

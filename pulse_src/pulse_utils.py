@@ -1,11 +1,13 @@
 import threading
+
+import matplotlib.pyplot as plt
 import numpy as np
 from astropy import units as u
-import matplotlib.pyplot as plt
 from scipy import interpolate
-import _actions as actions
 
-from spinapi import *
+from . import _actions as actions
+from .spinapi import *
+
 # try:
 # except ImportError:
 #     raise Exception()
