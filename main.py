@@ -1,4 +1,3 @@
-import wx
 import tkinter as tk
 
 from src.Boxes import *
@@ -49,9 +48,7 @@ class AppFrame(tk.Tk):
         self.Close()
 
 def main():
-    # app = wx.App(redirect=True, filename="log.txt")
     frame = AppFrame()
-    # frame.Show()
     tk.mainloop()
 
 if __name__ == '__main__':

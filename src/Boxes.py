@@ -40,7 +40,7 @@ class SetParameterFrame(tk.LabelFrame):
     
 class PulseToolsBox(tk.LabelFrame):
     def __init__(self, parent, *args, **kwargs):
-        super(PulseToolsBox, self).__init__(parent, *args, **kwargs) # Leaving out wx.V/H because it doesn't matter
+        super(PulseToolsBox, self).__init__(parent, *args, **kwargs) 
         self.parent = parent
 
         self.init_UI()
