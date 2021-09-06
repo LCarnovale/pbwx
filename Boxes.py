@@ -1,11 +1,12 @@
 import wx
+import tkinter as tk
+import tkinter.ttk as ttk
 import os
 import sys
 
-class SelectPulseStaticBox(wx.StaticBoxSizer):
-    def __init__(self, root_folder, parent, *args, **kwargs):
-        sb = wx.StaticBox(parent, label="Select Pulse Sequence")
-        super(SelectPulseStaticBox, self).__init__(sb, wx.VERTICAL, *args, **kwargs)
+class SelectPulseFrame(tk.LabelFrame):
+    def __init__(self, parent, root_folder, *args, **kwargs):
+        super(SelectPulseFrame, self).__init__(parent, *args, text='Select Pulse Sequence', **kwargs)
         self.root_folder = root_folder
         self.parent = parent
 
@@ -19,33 +20,32 @@ class SelectPulseStaticBox(wx.StaticBoxSizer):
                 pulse_list = os.listdir(sys.path[0] + "/./" + self.root_folder)
             except:
                 raise FileNotFoundError("Unable to find pulse folder.")
-        cb = wx.ComboBox(self.parent, choices=pulse_list, style=wx.CB_READONLY)
-        browse_btn = wx.Button(self.parent, label="Browse")
+        cb = ttk.Combobox(self, values=pulse_list, state="readonly")
+        browse_btn = tk.Button(self, text="Browse", width=8,
+            command=lambda:print("Browsin'"))
 
-        self.Add(cb, flag=wx.LEFT|wx.TOP, border=10)
-        self.Add(browse_btn, flag=wx.LEFT|wx.BOTTOM, border=10)
+        cb.grid(row=0, column=0, sticky=tk.W+tk.E)
+        browse_btn.grid(row=1, column=0, sticky=tk.W+tk.E)
 
 
-class SetParameterBox(wx.StaticBoxSizer):
+class SetParameterFrame(tk.LabelFrame):
     def __init__(self, parent, *args, **kwargs):
-        sb = wx.StaticBox(parent, label="Parameters")
-        super(SetParameterBox, self).__init__(sb, wx.VERTICAL, *args, **kwargs)
+        super(SetParameterFrame, self).__init__(parent, *args, text="Parameter Controls", **kwargs)
         self.parent = parent
 
         self.init_UI()
 
     def init_UI(self):
-        tb = wx.StaticText(self.parent, label="Static Text Field")
-        self.Add(tb)
+        tb = tk.Label(self, text="Static Text Field")
+        tb.grid(row=0, column=0, sticky=tk.W)
     
-class PulseToolsBox(wx.StaticBoxSizer):
+class PulseToolsBox(tk.LabelFrame):
     def __init__(self, parent, *args, **kwargs):
-        sb = wx.StaticBox(parent, label="Pulse Tools")
-        super(PulseToolsBox, self).__init__(sb, *args, **kwargs) # Leaving out wx.V/H because it doesn't matter
+        super(PulseToolsBox, self).__init__(parent, *args, **kwargs) # Leaving out wx.V/H because it doesn't matter
         self.parent = parent
 
         self.init_UI()
 
     def init_UI(self):
-        tb = wx.StaticText(self.parent, label="Another static text field.")
-        self.Add(tb)
+        tb = tk.Label(self, text="Another static text field.")
+        tb.grid(row=0, column=0, sticky=tk.W)
