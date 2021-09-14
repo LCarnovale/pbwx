@@ -2,7 +2,7 @@ import numpy as np
 from astropy import units as u
 
 from . import pulse_utils as pu
-
+from . import _actions as actions
 
 def read_pulse_file(filename):
     """ Read data from a file and create a pulse object. """
@@ -50,7 +50,7 @@ def read_pulse_file(filename):
                 val = word
                 if val not in found_symbols:
                     print(f"Found symbol: {val}")
-                    found_symbols.append(val)
+                    found_symbols[val] = None
             else:
                 val = int(val / u.ns) # Convert to value in nanoseconds
             finally:
@@ -59,15 +59,17 @@ def read_pulse_file(filename):
     return pulse
 
 if __name__ == "__main__":
-    p = read_pulse_file("pbwx/pulses/test.pls")
+    p = read_pulse_file("pulses/Rabi.pls")
     p.set_controller(pu.SequenceProgram())
     pu.init_board()
     print(p.flag_seqs)
     # p.set_param_default(tau=300., pi_h=400.)
-    p.evaluate_params('tau', 'pi_h', 'pi')
+    # p.evaluate_params('tau', 'pi_h', 'pi')
+    # p.evaluate_params(excite_t=2*u.us, tau=12)
     print(p.flag_seqs)
-    p.program_seq()
-    p.plot_sequence()
+    p.program_seq(tau=300)
+    p.program_seq(tau=0.6*u.us, end_action=actions.LE)
+    p.plot_sequence('excite_t',tau=300)
 
     
 

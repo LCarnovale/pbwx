@@ -31,7 +31,7 @@ class Continue(Action):
     def get_inst_data(self):
         return 0
 
-CTN = Continue()   
+CNT = Continue()   
 
 class Branch(Action):
     def __init__(self, target):

@@ -37,7 +37,7 @@ FLAG_ON  = 1
 FLAG_OFF = 0
 
 def init_board():
-
+    """ Call this before using any other functions in this program. """
     print("Using SpinAPI Library version %s" % pb_get_version())
     print("Found %d boards in the system.\n" % pb_count_boards())
 
@@ -74,7 +74,9 @@ class SequenceProgram(threading.Thread):
 
 
     def run(self):
-        """ Program the sequence into the board and begin running the sequence. """
+        """ Begin running the sequence currently programmed on the board. 
+        If programming mode is enabled, `self.prog_exit()` will be called 
+        before starting the sequence."""
         check_board_init()
 
         if self.in_prog:
@@ -101,8 +103,10 @@ class SequenceProgram(threading.Thread):
 
         if SequenceProgram.prog_mode:
             raise Exception("The board is already in programming mode.")
+
         if self.in_prog:
             # Nothing to do
+            # This should never happen? We wouldn't get past the previous exception?
             pass
 
         self.in_prog = True
@@ -184,7 +188,7 @@ class PulseSequence:
         Set `loop=0` for no looping, otherwise give the number of times
         this sequence should be repeated.
 
-        Alternatively, set `cycle=True` to make the sequence branch back
+        Alternatively, set `cycle=True` (default `False`) to make the sequence branch back
         to the beginning, making an infinite loop.
         """
         if controller == None:
@@ -227,8 +231,8 @@ class Marker:
 
 
 class RawSequence(PulseSequence):
-    def __init__(self, *args, save_refs=True, **kwargs):
-        super(RawSequence, self).__init__(*args, **kwargs)
+    def __init__(self, controller, *args, save_refs=True, **kwargs):
+        super(RawSequence, self).__init__(controller, *args, **kwargs)
         self.flag_seqs = { n:None for n in range(self.n_bits) }
         self.save_refs = save_refs
         self.markers = {}
@@ -236,7 +240,7 @@ class RawSequence(PulseSequence):
     def get_marker(self, frame):
         """ Get a marker object for the specified frame. The first frame
         is frame 0.
-        """ 
+        """
         m = Marker()
         self.markers[frame] = m
         return m
@@ -367,14 +371,26 @@ class RawSequence(PulseSequence):
                 pass
         
         raise Exception("No programming has been done and hence no refs exist yet.")
-            
+
+def extract_ns(value):
+    """ If `value` is a Quantity, convert to nanoseconds and return dimensionless value,
+    otherwise just return value. In any case if `value` is dimensionless or a unit of time
+    then the output will be dimensionless nanoseconds. Non time units will raise an error."""
+    try:
+        value.unit
+    except:
+        return value
+    else:
+        # The +0 isn't needed but it will catch out non-time units being provided
+        return (value / u.ns + 0).value
+
 
 class AbstractSequence(RawSequence):
     """ A sequence which can be represented using parameters, 
     which can be assigned at the last minute before being executed,
     and remain undetermined until then. """
-    def __init__(self, *args, **kwargs):
-        super(AbstractSequence, self).__init__(*args, **kwargs)
+    def __init__(self, controller, *args, **kwargs):
+        super(AbstractSequence, self).__init__(controller, *args, **kwargs)
         self.params = {}
 
     def set_param_default(self, **params):
@@ -389,11 +405,7 @@ class AbstractSequence(RawSequence):
         On programming the sequence, if no new value is 
         provided for that parameter, the default will be used. """
         for k, val in params.items():
-            try:
-                val.unit
-                params[k] = val / u.ns + 0
-            except:
-                pass
+            params[k] = extract_ns(val)
         self.params.update(**params)
 
     def add_seq(self, flags, sequences, t_rel=True):
@@ -423,7 +435,7 @@ class AbstractSequence(RawSequence):
                         # Add the new parameter
                         self.params[x] = None
 
-    def program_seq(self, end_action=actions.CTN, **params):
+    def program_seq(self, end_action=actions.CNT, **params):
         """ Program the sequence to the board. Provide values
         for parameters as keyword arguments, eg:
 
@@ -438,6 +450,8 @@ class AbstractSequence(RawSequence):
         will be restored.
         """
         # Check params
+        # self.evaluate_params(**params)
+
         temp_params = self.params.copy()
         temp_params.update(**params)
         if None in temp_params.values():
@@ -449,13 +463,19 @@ class AbstractSequence(RawSequence):
 
             raise ValueError("Values must be provided for: %s" % missing)
 
+        # Convert units to scalars
+        for k, v in temp_params.items():
+            temp_params[k] = extract_ns(v)
+
         # Create copy of original parameters
         original_seqs = {
             k:(seq.copy() if seq is not None else None) for k, seq in self.flag_seqs.items()
         }
         # Substitute params
         for k, seq in self.flag_seqs.items():
+            # Skip empty sequences
             if seq is None: continue
+            # Otherwise go through sequence and replace symbols
             for i, v in enumerate(seq):
                 if v in temp_params:
                     seq[i] = temp_params[v]
@@ -471,6 +491,8 @@ class AbstractSequence(RawSequence):
         or a value given here. eg,
 
         >>> absq.evaluate_params('tau', on_time=10.2)
+
+        Units can be specified, if not then nanoseconds is assumed.
 
         Will evaluate the sequence setting 'tau' to its default parameter
         and 'on_time' to 10.2.
@@ -495,10 +517,13 @@ class AbstractSequence(RawSequence):
                 continue
             for i, value in enumerate(seq):
                 if value in kw_params:
-                    seq[i] = kw_params[value]
+                    val = kw_params[value]
+                    seq[i] = extract_ns(val)
 
 
-
+    def plot_sequence(self, *params, **kw_params):
+        self.evaluate_params(*params, **kw_params)
+        super(AbstractSequence, self).plot_sequence()
     
 # class LoopSequence(PulseSequence):
 
@@ -531,6 +556,7 @@ def merge_flag_seqs(sequences, relative_times=True):
 
     If some sequences are longer than others, all
     sequences will be padded with `FLAG_OFF`.
+
 
     sequences: list of corresponding times to toggle flags.
     eg;
@@ -575,4 +601,4 @@ def merge_flag_seqs(sequences, relative_times=True):
     return t_all, frames.T
         
 if __name__ == "__main__":
-    print("Hello")
+    print("Hello there")

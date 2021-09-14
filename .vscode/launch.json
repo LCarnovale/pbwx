@@ -5,6 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Run Main",
+            "type": "python",
+            "request": "launch",
+            "module": "main"
+        },
+        {
+            "name": "Run Load Pulse",
+            "type": "python",
+            "request": "launch",
+            "module": "pulse_src.load_pulse"
+        },
+        {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",

@@ -1,6 +1,8 @@
 import tkinter as tk
 
 from src.Boxes import *
+# import pulse_src as pls
+import pulse_src.pulse_utils as pls
 
 PULSE_FOLDER = "pulses"
 
@@ -9,6 +11,8 @@ class AppFrame(tk.Tk):
         super(AppFrame, self).__init__(*args, **kwargs)
         self.title("Pulse manager")
         self.init_ui()
+        self.pls_controller = pls.SequenceProgram("Main sequence")
+        self.sequence = pls.AbstractSequence(self.pls_controller, cycle=True)
     
     def init_ui(self):
         # Main window pane
@@ -46,6 +50,7 @@ class AppFrame(tk.Tk):
 
     def OnQuit(self, e):
         self.Close()
+
 
 def main():
     frame = AppFrame()
