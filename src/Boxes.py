@@ -48,6 +48,7 @@ class SelectPulseFrame(tk.LabelFrame):
             print("Loaded pulse:", self.pulse)
             SetParameterFrame.send_pulse_object(self.pulse)
             RepetitionsFrame.send_pulse_object(self.pulse)
+            PulseShapeFrame.send_pulse_object(self.pulse)
         
 
 
@@ -70,6 +71,7 @@ class SetParameterFrame(tk.LabelFrame):
         self.parent = parent
         self.to_remove = [] # UI elements to remove when switching pulses
         self.params = {}
+        self.pulse = None
         self.init_UI()
         _SPF_instance = self
 
@@ -82,6 +84,7 @@ class SetParameterFrame(tk.LabelFrame):
     @staticmethod
     def send_pulse_object(pulse_obj=None):
         _SPF_instance.init_param_list(pulse_obj)
+        _SPF_instance.pulse = pulse_obj
         
     def init_param_list(self, pulse_obj=None):
         for e in self.to_remove:
@@ -131,7 +134,7 @@ class SetParameterFrame(tk.LabelFrame):
                 # Create row
                 lbl = tk.Label(self, text=k)
                 lbl.grid(row=row+n, column=0, sticky=tk.W+tk.E)
-                box = tk.Entry(self, text=v, 
+                box = ttk.Entry(self, text=v, #increment=1,
                     validate="focusout", textvariable=var)
                 box.grid(row=row+n, column=1, sticky=tk.W+tk.E)
                 set_lbl = tk.Label(self, text=var.get(), textvariable=lbl_vars[k])
@@ -139,7 +142,14 @@ class SetParameterFrame(tk.LabelFrame):
                 self.to_remove.append(lbl)
                 self.to_remove.append(box)
                 self.to_remove.append(set_lbl)
+            
+            plot_btn = tk.Button(self, text="Plot", command=self.plot_params)
+            plot_btn.grid(row=row+n+1, column=1, sticky=tk.W+tk.E)
+            self.to_remove.append(plot_btn)
 
+    def plot_params(self, *args):
+        print(self.params)
+        self.pulse.plot_sequence(**self.params)
 
 
 

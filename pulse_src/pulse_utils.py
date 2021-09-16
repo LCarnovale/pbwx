@@ -146,7 +146,7 @@ class SequenceProgram(threading.Thread):
                 f"inst_data:  {inst_data}\n"
                 f"length:  {length}\n"
                 "Message: "+str(e))
-        # self.inst_seq.append(inst)
+        self.inst_seq.append(inst)
         print(f"[{flags:b}]", *inst[1:])
         # print([type(x) for x in inst])
         if not SAFE_MODE:
@@ -154,6 +154,32 @@ class SequenceProgram(threading.Thread):
         else:
             return 0
 
+    def get_flag_data(self, flag):
+        """ Flag should be an integer representing the bit in interest.
+        Returns the sequence as so far programmed for that bit.
+        
+        Example:
+            >>> sp.get_flag_data(1)
+            ([0, 1, 5, 6, 10, 12, 13], [0, 1, 0, 0, 1, 0, 1])
+        
+        Where each of the returned arrays are numpy arrays.
+
+        Output is optimised such that
+            >>> s = sp.get_flag_data(1)
+            >>> plt.plot(*s, drawstyle='steps-pre')
+        Will produce a visual plot of the programmed instructions.
+        """
+        flag_b = 2**flag
+        # Get time values from all instructions
+        t_ax = [x[3] for x in self.inst_seq]
+        # Get flags of all instructions
+        flags = np.array([x[0].value for x in self.inst_seq])
+        # Find which flags have the required bit enabled
+        vals = (flags & flag_b) // flag_b
+        # Convert time axis to cumulative values with a zero at the start.
+        t_ax = np.concatenate([[0], np.cumsum(t_ax)], axis=0)
+        vals = np.concatenate([[vals[0]], vals], axis=0)
+        return t_ax, vals
 class EmptyController:
     def __init__(self):
         pass
@@ -285,6 +311,8 @@ class RawSequence(PulseSequence):
     
     def program_seq(self, end_action=None):
         """ Program the Pulse Blaster board with the defined sequences.
+
+        `end_action` must be an Action type from `_actions.py`.
         """
         t_ax, frames = self._merge_sequences()
         pin_sets = [flags_to_number(f) for f in frames]
@@ -310,7 +338,7 @@ class RawSequence(PulseSequence):
             # Add the final frame, which branches back to the beginning
             refs.append(
                 self.controller.add_instruction(
-                    pin_sets[-1], Inst.BRANCH, start, t_lens[-1]
+                    pin_sets[-1], end_action.inst, start, t_lens[-1]
                 )
             )
         except Exception as e:
@@ -327,15 +355,22 @@ class RawSequence(PulseSequence):
             self.controller.prog_exit()
 
     def plot_sequence(self):
+        # Get frame flags (ie on/off values for each frame, for each flag)
         t_ax, frames = self._merge_sequences()
+        # Pick the flags which are not all zeros
         nonz_flags = np.array([k for k, v in self.flag_seqs.items() if v is not None])
+        # Turn time axis into one we can plot
         t_ax = t_ax.cumsum()
         if t_ax[0] != 0:
+            # If the time axis doesn't start at zero, add a t=0 frame
             t_ax = np.concatenate([[0], t_ax])
             frames = np.concatenate([frames[[0]], frames[:]], axis=0)
+        # Get flag numbers to show on plot
         flag_nums = np.arange(frames.shape[1])
+        # Exclude frames which are all zero
         frames = frames[:,nonz_flags]
         flag_nums = flag_nums[nonz_flags]
+        # Vertically separate each flag to make it look better
         plot_shifts = np.arange(len(nonz_flags))
         plt.plot(t_ax, frames + plot_shifts, drawstyle='steps-pre')
         plt.legend([str(i) for i in flag_nums])
@@ -368,7 +403,7 @@ class RawSequence(PulseSequence):
             try:
                 return self._refs
             except AttributeError:
-                pass
+                return None
         
         raise Exception("No programming has been done and hence no refs exist yet.")
 
@@ -481,7 +516,7 @@ class AbstractSequence(RawSequence):
                     seq[i] = temp_params[v]
 
         # Program
-        super(AbstractSequence, self).program_seq()
+        super(AbstractSequence, self).program_seq(end_action=end_action)
 
         # Return original sequence
         self.flag_seqs = original_seqs
@@ -570,6 +605,26 @@ def merge_flag_seqs(sequences, relative_times=True):
     # Perform cum sum if needed:
     if relative_times:
         sequences = [np.cumsum(sequence) for sequence in sequences]
+    # Try pre-emptively remove zero length frames:
+    for i, seq in enumerate(sequences):
+        # Mask of which values to keep
+        fin_mask = np.ones(len(seq), dtype=np.bool8)
+        # If two adjacent values are equal then remove both
+        skip_flag = False
+        for k, t in enumerate(seq[:-1]):
+            if skip_flag:
+                # Skip the second of two consecutive values
+                # This is important because a third consecutive value 
+                # should not be removed (ie only even quantities should be removed)
+                skip_flag = False
+                continue
+            if t == seq[k+1]:
+                fin_mask[k] = False
+                fin_mask[k+1] = False
+                skip_flag = True
+                
+        sequences[i] = seq[fin_mask]
+
     # Make sure sequences is an array
     flat_seqs = np.unique(np.concatenate(sequences))
     # Sort time steps

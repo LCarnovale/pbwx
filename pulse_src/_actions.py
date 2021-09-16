@@ -22,6 +22,15 @@ class Action(abc.ABC):
     @abc.abstractmethod
     def get_inst_data(self):
         pass
+
+    @property
+    def inst(self):
+        return self.get_inst()
+    
+    @property
+    def data(self):
+        return self.get_inst_data()
+
         
 class Continue(Action):
     def __init__(self):

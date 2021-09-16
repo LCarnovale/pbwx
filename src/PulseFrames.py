@@ -1,9 +1,39 @@
 import tkinter as tk
 import tkinter.ttk as ttk
+_PSF_instance = None
 class PulseShapeFrame(ttk.Frame):
     def __init__(self, parent, **kwargs):
+        global _PSF_instance
         super(PulseShapeFrame, self).__init__(parent, **kwargs)
+        self.to_remove = []
+        _PSF_instance = self
+        self.init_UI()
 
+    @staticmethod
+    def send_pulse_object(pulse_obj=None):
+        _PSF_instance.init_pulse_shapes(pulse_obj)
+
+    def init_UI(self):
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=10)
+        self.init_pulse_shapes()
+
+    def init_pulse_shapes(self, pulse_obj=None):
+        for e in self.to_remove:
+            e.grid_forget()
+        if pulse_obj is None:
+            lbl = tk.Label(self, text="Select a pulse file")
+            lbl.grid(row=0, column=0, sticky=tk.W+tk.E)
+            self.to_remove = [lbl]
+        else:
+            lbl1 = tk.Label(self, text="Pin")
+            lbl2 = tk.Label(self, text="Pulse Shape")
+            lbl1.grid(row=0, column=0, sticky=tk.W+tk.E)
+            lbl2.grid(row=0, column=1, sticky=tk.W+tk.E)
+            self.to_remove = [lbl1, lbl2]
+
+
+        
 _RF_instance = None
 class RepetitionsFrame(ttk.Frame):
     def __init__(self, parent, **kwargs):

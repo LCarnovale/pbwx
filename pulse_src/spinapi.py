@@ -47,6 +47,8 @@ except:
 		spinapi = ctypes.CDLL("spinapi")
 	except:
 		print("Failed to load spinapi library.")
+		print("If this is unexpected, you may need to check the "\
+			  "location of the spinapi library in spinapi.py.")
 		print("Using spinapi TEST MODE")
 		DBG_MODE = True
 		spinapi = spinapi_debug()

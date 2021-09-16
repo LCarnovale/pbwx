@@ -4,6 +4,15 @@ from astropy import units as u
 from . import pulse_utils as pu
 from . import _actions as actions
 
+def ignore_comments(line:str):
+    # Ignore any characters after a '#'
+    try:
+        end = line.index('#')
+    except:
+        return line
+    else:
+        return line[:end]
+
 def read_pulse_file(filename):
     """ Read data from a file and create a pulse object. """
     f = open(filename, 'r')
@@ -15,6 +24,7 @@ def read_pulse_file(filename):
     found_symbols = {}
     # Get the parameter values
     for line in lines:
+        line = ignore_comments(line)
         if "!" in line: break
         if "=" in line: continue
         sym, value = line.split(":")
@@ -29,6 +39,7 @@ def read_pulse_file(filename):
     # Go through each line
     in_params_block = True
     for line in lines:
+        line = ignore_comments(line)
         if in_params_block:
             if "!" in line:
                 in_params_block = False
@@ -41,6 +52,8 @@ def read_pulse_file(filename):
         seq = seq.replace(",", " ")
         seq = seq.split()
         for i, word in enumerate(seq):
+            if word == "+":
+                word = "0"
             try:
                 val = u.Quantity(word)
                 if str(val.unit) == '':
@@ -59,7 +72,7 @@ def read_pulse_file(filename):
     return pulse
 
 if __name__ == "__main__":
-    p = read_pulse_file("pulses/Rabi.pls")
+    p = read_pulse_file("pulses/Ramsey.pls")
     p.set_controller(pu.SequenceProgram())
     pu.init_board()
     print(p.flag_seqs)
@@ -69,7 +82,8 @@ if __name__ == "__main__":
     print(p.flag_seqs)
     p.program_seq(tau=300)
     p.program_seq(tau=0.6*u.us, end_action=actions.LE)
-    p.plot_sequence('excite_t',tau=300)
+    p.plot_sequence('excite_t', 'pi_h',tau=300)
+    
 
     
 
