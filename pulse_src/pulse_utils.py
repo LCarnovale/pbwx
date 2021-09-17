@@ -270,6 +270,61 @@ class RawSequence(PulseSequence):
         m = Marker()
         self.markers[frame] = m
         return m
+    
+    def concat(self, other, stretch=True, toggle_odd=True):
+        """ Returns a new sequence which is this one followed by the other sequence.
+        If `stretch=True` (default) then sequences for flags which are shorter than the
+        longest sequence in this sequence are 'stretched', ie they are made to continue
+        their last state until the end of the last frame.
+        If `toggle_odd=True` (default) then if a sequence in this object has an odd 
+        number of toggles, an extra zero-length toggle will be added to make sure each next
+        sequence is consistent. 
+
+        `concat` also mapped to the python add magic method, ie:
+            >>> A = RawSequence()
+            >>> B = RawSequence()
+            >>> C = A.concat(B)
+        is equivalent to:
+            >>> A = RawSequence()
+            >>> B = RawSequence()
+            >>> C = A + B
+        """
+        this_flags = {k:(v.copy() if v else None) for k, v in self.flag_seqs.items()}
+        other_flags = {k:(v.copy() if v else None) for k, v in other.flag_seqs.items()}
+        new_seq = {k:None for k in self.flag_seqs}
+        if stretch:
+            # work out the end time:
+            times = [sum(seq) for seq in this_flags.values() if seq is not None]
+            end_time = max(times)
+        for key in this_flags:
+            th_seq = this_flags[key]
+            ot_seq = other_flags[key]
+            if th_seq is None and ot_seq is None: continue
+            if th_seq is None and ot_seq is not None:
+                new_seq[key] = [end_time] + ot_seq
+                
+            if stretch:
+                t_full = sum(th_seq)
+                th_seq[-1] += end_time - t_full
+            if toggle_odd:
+                if len(th_seq) % 2 != 0:
+                    th_seq.append(0)
+            if th_seq is not None and ot_seq is None:
+                new_seq[key] = th_seq
+            else:
+                new_seq[key] = th_seq + ot_seq
+            # Otherwise they are both defined
+        new = RawSequence(self.controller, save_refs=self.save_refs)
+        new.flag_seqs = new_seq
+
+        return new
+                
+                
+            
+
+
+    def __add__(self, other):
+        return self.concat(other)
 
     def add_seq(self, flags, sequences, t_rel=True):
         """ Add flag toggle times for a given flag.
@@ -521,18 +576,48 @@ class AbstractSequence(RawSequence):
         # Return original sequence
         self.flag_seqs = original_seqs
 
+    def eval_full(self, **kw_params) -> RawSequence:
+        """ Completely evaluate the sequence, using the given parameter 
+        values, or the default values, in that order of preference.
+        
+        A `RawSequence` object is returned.
+        """
+        new_params = self.params.copy()
+        new_params.update(kw_params)
+        if None in new_params.items():
+            bad_params = [k for k, v in new_params.items() if v is None]
+            raise ValueError('The following parameters do not have default values and need to be specified:\n%s'%bad_params)
+
+        # Create a copy for the new sequences, note this is a shallow copy,
+        # the references to the sequence lists is probably being re-used.
+        new_sequence = self.flag_seqs.copy()
+        for k, seq in self.flag_seqs.items():
+            if seq is None:
+                continue
+            new_sequence[k] = seq.copy()
+            for i, value in enumerate(seq):
+                if value in new_params:
+                    val = new_params[value]
+                    new_sequence[k][i] = extract_ns(val)
+
+        ret = RawSequence(self.controller, save_refs=self.save_refs) 
+        ret.flag_seqs = new_sequence
+        return ret
+
     def evaluate_params(self, *params, **kw_params):
         """ Evaluate the given parameters using the default values,
         or a value given here. eg,
 
-        >>> absq.evaluate_params('tau', on_time=10.2)
+        >>> absq.evaluate_params('tau', on_time=1e2)
+
+        Will evaluate the sequence setting 'tau' to its default parameter
+        and 'on_time' to 100.
+        If 'tau' in this example doesn't have default value, a ValueError will be
+        raised.
 
         Units can be specified, if not then nanoseconds is assumed.
 
-        Will evaluate the sequence setting 'tau' to its default parameter
-        and 'on_time' to 10.2.
-        If 'tau' in this example doesn't have default value, a ValueError will be
-        raised.
+        Returns a new `AbstractSequence`.
         """
         # temp_params = self.params.copy()
         # temp_params.update(**kw_params)
@@ -547,18 +632,23 @@ class AbstractSequence(RawSequence):
         if bad_params:
             raise ValueError(f"The following parameters require a value to be set for them: {bad_params}")
 
+        new_sequence = self.flag_seqs.copy()
+
         for k, seq in self.flag_seqs.items():
             if seq is None:
                 continue
             for i, value in enumerate(seq):
+                new_sequence[k] = seq.copy()
                 if value in kw_params:
                     val = kw_params[value]
-                    seq[i] = extract_ns(val)
-
+                    new_sequence[k][i] = extract_ns(val)
+        ret = AbstractSequence(self.controller, save_refs=self.save_refs)
+        ret.flag_seqs = new_sequence
+        return ret
 
     def plot_sequence(self, *params, **kw_params):
-        self.evaluate_params(*params, **kw_params)
-        super(AbstractSequence, self).plot_sequence()
+        raw_seq = self.eval_full(**kw_params)
+        raw_seq.plot_sequence()
     
 # class LoopSequence(PulseSequence):
 
@@ -651,7 +741,7 @@ def merge_flag_seqs(sequences, relative_times=True):
         frames = frames[:, nonz_ts]
         t_all = t_all[nonz_ts]
     else:
-        print("pulse_utils.merge_flag_seqs: Warning: "
+        print("pulse_utils.merge_flag_seqs(): Warning: "
               "I haven't checked behaviour for relative_times=False")
     return t_all, frames.T
         

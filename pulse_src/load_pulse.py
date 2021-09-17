@@ -82,7 +82,14 @@ if __name__ == "__main__":
     print(p.flag_seqs)
     p.program_seq(tau=300)
     p.program_seq(tau=0.6*u.us, end_action=actions.LE)
-    p.plot_sequence('excite_t', 'pi_h',tau=300)
+    e1 = p.eval_full(tau=100)
+    for tau in range(200, 1000, 100):
+        eN = p.eval_full(tau=tau)
+        e1 = e1 + eN
+    # e2 = p.eval_full(tau=600)
+    # s = e1 + e2
+    e1.plot_sequence()
+    # p.plot_sequence(tau=600)
     
 
     
