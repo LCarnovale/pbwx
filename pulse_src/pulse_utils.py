@@ -299,17 +299,21 @@ class RawSequence(PulseSequence):
         for key in this_flags:
             th_seq = this_flags[key]
             ot_seq = other_flags[key]
+            # None + None
             if th_seq is None and ot_seq is None: continue
+            # None + [num]
             if th_seq is None and ot_seq is not None:
-                new_seq[key] = [end_time] + ot_seq
-                
+                new_seq[key] = [end_time, 0] + ot_seq
+                continue
+            if toggle_odd and ot_seq is not None:
+                if len(th_seq) % 2 != 0:
+                    # If prev seq finishes on an ON, add an 
+                    # OFF for the rest of the sequence
+                    th_seq.append(0)
             if stretch:
                 t_full = sum(th_seq)
                 th_seq[-1] += end_time - t_full
-            if toggle_odd:
-                if len(th_seq) % 2 != 0:
-                    th_seq.append(0)
-            if th_seq is not None and ot_seq is None:
+            if ot_seq is None:
                 new_seq[key] = th_seq
             else:
                 new_seq[key] = th_seq + ot_seq
@@ -320,11 +324,23 @@ class RawSequence(PulseSequence):
         return new
                 
                 
-            
+    def eval(self, **kwargs):
+        """ No functino for a raw sequence. Just returns itself."""
+        return self 
 
 
     def __add__(self, other):
+        if other is None or other == 0:
+            return self
         return self.concat(other)
+
+    def __radd__(self, other):
+        if other is None or other == 0:
+            return self
+        if isinstance(other, RawSequence):
+            return other.concat(self)
+        else:
+            raise TypeError("Cannot r-add these types.")
 
     def add_seq(self, flags, sequences, t_rel=True):
         """ Add flag toggle times for a given flag.
@@ -576,7 +592,7 @@ class AbstractSequence(RawSequence):
         # Return original sequence
         self.flag_seqs = original_seqs
 
-    def eval_full(self, **kw_params) -> RawSequence:
+    def eval(self, **kw_params) -> RawSequence:
         """ Completely evaluate the sequence, using the given parameter 
         values, or the default values, in that order of preference.
         
@@ -647,7 +663,7 @@ class AbstractSequence(RawSequence):
         return ret
 
     def plot_sequence(self, *params, **kw_params):
-        raw_seq = self.eval_full(**kw_params)
+        raw_seq = self.eval(**kw_params)
         raw_seq.plot_sequence()
     
 # class LoopSequence(PulseSequence):

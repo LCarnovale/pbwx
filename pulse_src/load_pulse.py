@@ -1,3 +1,4 @@
+from .structured_seq import StructuredSequence
 import numpy as np
 from astropy import units as u
 
@@ -18,8 +19,8 @@ def read_pulse_file(filename):
     f = open(filename, 'r')
     lines = f.readlines()
     f.close()
-
-    pulse = pu.AbstractSequence(None)
+    # sections = {k:None for k in ["PARAMS", "SEQ", "STRUCT"]}
+    # pu.AbstractSequence(None)
 
     found_symbols = {}
     # Get the parameter values
@@ -33,28 +34,44 @@ def read_pulse_file(filename):
             print(f"Found symbol: {sym}")
             found_symbols[sym] = u.Quantity(value)
 
-    pulse.set_param_default(**found_symbols)
+    pulses = []
 
 
     # Go through each line
     in_params_block = True
-    for line in lines:
+    structure = None
+    for ln, line in enumerate(lines):
         line = ignore_comments(line)
         if in_params_block:
             if "!" in line:
                 in_params_block = False
             continue
         if "!" in line:
-            # When we find the second ! we are entering the comments section
+            # When we find the second ! we are entering the structure or 
+            # comments section, either way we are done reading the sequence
+            if "structure" in line.lower():
+                structure = lines[ln+1]
+                structure = structure.replace("\n", "")
+                print("Found structure: ", structure)
             break
+        # After this point we know we are in the sequence part of the file
         bit, seq = line.split(":")
         bit = int(bit)
         seq = seq.replace(",", " ")
+        seq = seq.replace("+", " 0 ")
         seq = seq.split()
+        # Begin with the first sequence, increase after each '|' character
+        seq_num = 0
+        seq_all = [[]]
         for i, word in enumerate(seq):
-            if word == "+":
-                word = "0"
+            if seq_num >= len(seq_all):
+                # Create a new sequence list if there isn't already enough
+                seq_all.append(list())
             try:
+                if word == '|':
+                    # Move onto the next sequence
+                    seq_num += 1
+                    continue  
                 val = u.Quantity(word)
                 if str(val.unit) == '':
                     val *= 1*u.ns
@@ -67,30 +84,43 @@ def read_pulse_file(filename):
             else:
                 val = int(val / u.ns) # Convert to value in nanoseconds
             finally:
-                seq[i] = val
-        pulse.add_seq([bit], [seq])
-    return pulse
+                if word != "|":
+                    seq_all[seq_num].append(val)
+        while seq_num >= len(pulses):
+            new_pulse = pu.AbstractSequence(None)
+            new_pulse.set_param_default(**found_symbols)
+            pulses.append(new_pulse)
+        for seq, pulse in zip(seq_all, pulses):
+            pulse.add_seq([bit], [seq])
+    if len(pulses) == 1:
+        return pulse
+    else:
+        struct_pulse = StructuredSequence(*pulses, structure=structure)
+        return struct_pulse
+
 
 if __name__ == "__main__":
-    p = read_pulse_file("pulses/Ramsey.pls")
-    p.set_controller(pu.SequenceProgram())
-    pu.init_board()
-    print(p.flag_seqs)
-    # p.set_param_default(tau=300., pi_h=400.)
-    # p.evaluate_params('tau', 'pi_h', 'pi')
-    # p.evaluate_params(excite_t=2*u.us, tau=12)
-    print(p.flag_seqs)
-    p.program_seq(tau=300)
-    p.program_seq(tau=0.6*u.us, end_action=actions.LE)
-    e1 = p.eval_full(tau=100)
-    for tau in range(200, 1000, 100):
-        eN = p.eval_full(tau=tau)
-        e1 = e1 + eN
-    # e2 = p.eval_full(tau=600)
-    # s = e1 + e2
-    e1.plot_sequence()
-    # p.plot_sequence(tau=600)
+    # p = read_pulse_file("pulses/Ramsey.pls")
+    # p.set_controller(pu.SequenceProgram())
+    # pu.init_board()
+    # print(p.flag_seqs)
+    # # p.set_param_default(tau=300., pi_h=400.)
+    # # p.evaluate_params('tau', 'pi_h', 'pi')
+    # # p.evaluate_params(excite_t=2*u.us, tau=12)
+    # print(p.flag_seqs)
+    # p.program_seq(tau=300)
+    # p.program_seq(tau=0.6*u.us, end_action=actions.LE)
+    # e1 = p.eval(tau=100)
+    # for tau in range(200, 1000, 100):
+    #     eN = p.eval(tau=tau)
+    #     e1 = e1 + eN
+    # # e2 = p.eval(tau=600)
+    # # s = e1 + e2
+    # e1.plot_sequence()
     
+    p = read_pulse_file("pulses/CPMG-2.pls")
+    a = p.eval(N=5)
+
 
     
 

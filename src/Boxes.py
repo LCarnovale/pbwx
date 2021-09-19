@@ -103,7 +103,6 @@ class SetParameterFrame(tk.LabelFrame):
             def _update_param(param_key, params, param_vars, lbl_vars):
                 # params, param_vars, lbl_vars = dicts
                 new_value = param_vars[param_key].get()
-                print("updating", param_key)
                 try:
                     new_value = float(new_value)
                 except:
@@ -124,13 +123,17 @@ class SetParameterFrame(tk.LabelFrame):
                 # Create variable
                 var = param_vars[k]
                 # Bind variable to row
-                if len(var.trace_info()) == 0:
-                    # If the same pulse sequence is loaded again the 
-                    # same variable and trace will be loaded, don't add another
-                    # trace to it. 
-                    var.trace_add("write", lambda name, *args: _update_param(name, self.params, param_vars, lbl_vars))
-                else:
-                    print(var, "already has a trace")
+                # if len(var.trace_info()) != 0:
+                #     # If the same pulse sequence is loaded again the 
+                #     # same variable and trace will be loaded, don't add another
+                #     # trace to it. 
+                #     print(var, "already has a trace")
+                # For some reason the program seems to work better without this
+
+                var.trace_add(
+                    "write", 
+                    (lambda name, *args: _update_param(name, self.params, param_vars, lbl_vars))
+                )
                 # Create row
                 lbl = tk.Label(self, text=k)
                 lbl.grid(row=row+n, column=0, sticky=tk.W+tk.E)
