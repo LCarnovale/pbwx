@@ -298,7 +298,11 @@ class RawSequence(PulseSequence):
             end_time = max(times)
         for key in this_flags:
             th_seq = this_flags[key]
+            if th_seq is not None: 
+                th_seq = th_seq.copy()
             ot_seq = other_flags[key]
+            if ot_seq is not None:
+                ot_seq = ot_seq.copy()
             # None + None
             if th_seq is None and ot_seq is None: continue
             # None + [num]
@@ -311,10 +315,12 @@ class RawSequence(PulseSequence):
                     # OFF for the rest of the sequence
                     th_seq.append(0)
             if stretch:
+                # Assuming toggle_odd=True, the next term will be an OFF
                 t_full = sum(th_seq)
-                th_seq[-1] += end_time - t_full
+                if end_time > t_full:
+                    th_seq += [end_time-t_full, 0]
             if ot_seq is None:
-                new_seq[key] = th_seq
+                new_seq[key] = th_seq.copy()
             else:
                 new_seq[key] = th_seq + ot_seq
             # Otherwise they are both defined
