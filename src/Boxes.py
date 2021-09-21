@@ -26,7 +26,8 @@ class SelectPulseFrame(tk.LabelFrame):
             pulse_list = os.listdir(self.root_folder)
         except FileNotFoundError:
             try:
-                pulse_list = os.listdir(sys.path[0] + "/./" + self.root_folder)
+                self.root_folder = sys.path[0] + "/./" + self.root_folder
+                pulse_list = os.listdir(self.root_folder)
             except:
                 raise FileNotFoundError("Unable to find pulse folder.")
         cb = ttk.Combobox(self, values=pulse_list, state="readonly", 

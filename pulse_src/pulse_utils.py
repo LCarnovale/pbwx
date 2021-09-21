@@ -20,14 +20,14 @@ from .spinapi import *
         
     
 
-SAFE_MODE = True
+SAFE_MODE = False
 if SAFE_MODE:
     print("SAFE_MODE is enabled, the board will not be programmed.")
 
 # # Configure the core clock
 # pb_core_clock(500)
 
-MIN_TIME = 5*ns
+MIN_TIME = 5 # ns
 
 all_bits = 0xFFFFFF
 TRIG = (1 << 7) # Trigger for oscilloscope
@@ -38,9 +38,9 @@ FLAG_OFF = 0
 
 def init_board():
     """ Call this before using any other functions in this program. """
-    # if SequenceProgram.board_initialised:
-    #     # No need to initialise twice
-    #     return
+    if SequenceProgram.board_initialised:
+        # No need to initialise twice
+        return
     print("Using SpinAPI Library version %s" % pb_get_version())
     print("Found %d boards in the system.\n" % pb_count_boards())
 
@@ -133,6 +133,8 @@ class SequenceProgram(threading.Thread):
 
     def add_instruction(self, flags:np.int32, inst:Inst, inst_data:np.int32, length:np.float64):
         check_board_init()
+        if length < MIN_TIME:
+            raise Exception("Instruction too short - must be at least %d nanoseconds." % MIN_TIME)
         if not self.in_prog:
             raise Exception("Must be in programming mode before adding instructions.")
         try:
