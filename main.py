@@ -10,9 +10,8 @@ class AppFrame(tk.Tk):
     def __init__(self, *args, **kwargs):
         super(AppFrame, self).__init__(*args, **kwargs)
         self.title("Pulse manager")
-        self.init_ui()
         self.pls_controller = pls.SequenceProgram("Main sequence")
-        self.sequence = pls.AbstractSequence(self.pls_controller, cycle=True)
+        self.init_ui()
     
     def init_ui(self):
         # Main window pane
@@ -26,11 +25,11 @@ class AppFrame(tk.Tk):
         main_panel.add(vbox_right, stretch="always")
 
         # Pulse select panel
-        select_pulse_pane = SelectPulseFrame(vbox_left, PULSE_FOLDER, padx=5, pady=5, width=50)
+        select_pulse_pane = SelectPulseFrame(vbox_left, PULSE_FOLDER, self.pls_controller, padx=5, pady=5, width=50)
         select_pulse_pane.pack(fill=tk.BOTH, expand=True)
         vbox_left.add(select_pulse_pane, stretch="always")
         # Parameter panel
-        edit_params_bs = SetParameterFrame(vbox_left)
+        edit_params_bs = SetParameterFrame(vbox_left, self.pls_controller)
         # Pulse tools panel
         pulse_tools_bs = PulseToolsBox(vbox_right)
 
@@ -41,9 +40,9 @@ class AppFrame(tk.Tk):
         button_pane.pack(fill=tk.BOTH, expand=False)
         button_pane.grid_columnconfigure(0, weight=1)
         button_pane.grid_columnconfigure(1, weight=1)
-        start_btn = tk.Button(button_pane, text="Start")
+        start_btn = tk.Button(button_pane, text="Start", command=edit_params_bs.start_seq)
         start_btn.grid(row=0, column=0)
-        stop_btn = tk.Button(button_pane, text="Stop")
+        stop_btn = tk.Button(button_pane, text="Stop", command=edit_params_bs.stop_seq)
         stop_btn.grid(row=0, column=1)
         vbox_right.add(button_pane, stretch="never")
 

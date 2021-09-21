@@ -111,6 +111,10 @@ class StructuredSequence:
                 total = total + c
         return total
 
+    def set_controller(self, controller):
+        for c in self.children:
+            c.set_controller(controller)
+
     def plot_sequence(self, **kw_params):
         seq = self.eval(**kw_params)
         seq.plot_sequence()

@@ -4,10 +4,10 @@ import os
 import sys
 
 from pulse_src import load_pulse as loader
-
+from pulse_src import pulse_utils as pu
 from .PulseFrames import PulseShapeFrame, RepetitionsFrame
 class SelectPulseFrame(tk.LabelFrame):
-    def __init__(self, parent, root_folder, *args, **kwargs):
+    def __init__(self, parent, root_folder, controller, *args, **kwargs):
         """ Provide a parent object and a path in `root_folder` 
         for the folder to look for `.pls` files
         """
@@ -16,6 +16,7 @@ class SelectPulseFrame(tk.LabelFrame):
         self.parent = parent
         self.selected_file = tk.StringVar(self)
         self.selected_file.trace_add("write", self.load_pulse)
+        self.pls_controller = controller
         # self.seq = pulse_sequence
 
         self.init_UI()
@@ -41,6 +42,7 @@ class SelectPulseFrame(tk.LabelFrame):
         try:
             with open(path, "r") as f:
                 self.pulse = loader.read_pulse_file(path)
+                self.pulse.set_controller(self.pls_controller)
         except Exception as e:
             print("Error loading pulse file %s" % path)
             print("Error: %s" % e)
@@ -65,9 +67,10 @@ def is_num(x, *args):
 _SPF_instance = None
 class SetParameterFrame(tk.LabelFrame):
     _instance = None
-    def __init__(self, parent, *args, **kwargs):
+    def __init__(self, parent, pls_controller, *args, **kwargs):
         global _SPF_instance
         super(SetParameterFrame, self).__init__(parent, *args, text="Parameter Controls", **kwargs)
+        self.pls_controller = pls_controller
         self.parent = parent
         self.to_remove = [] # UI elements to remove when switching pulses
         self.params = {}
@@ -149,12 +152,28 @@ class SetParameterFrame(tk.LabelFrame):
             plot_btn = tk.Button(self, text="Plot", command=self.plot_params)
             plot_btn.grid(row=row+n+1, column=1, sticky=tk.W+tk.E)
             self.to_remove.append(plot_btn)
+            prog_btn = tk.Button(self, text="Program", command=self.program_pulse)
+            prog_btn.grid(row=row+n+2, column=1, sticky=tk.W+tk.E)
+            self.to_remove.append(prog_btn)
 
     def plot_params(self, *args):
         print(self.params)
         self.pulse.plot_sequence(**self.params)
 
+    def program_pulse(self, *args):
+        try:
+            raw_seq = self.pulse.eval(**self.params)
+        except:
+            print("Sequence parameters have not all been specified.")
+        else:
+            pu.init_board()
+            raw_seq.program_seq(pu.actions.Branch(0))
 
+    def start_seq(self, *args):
+        self.pls_controller.run()
+
+    def stop_seq(self, *args):
+        self.pls_controller.stop()
 
             
 

@@ -38,6 +38,9 @@ FLAG_OFF = 0
 
 def init_board():
     """ Call this before using any other functions in this program. """
+    # if SequenceProgram.board_initialised:
+    #     # No need to initialise twice
+    #     return
     print("Using SpinAPI Library version %s" % pb_get_version())
     print("Found %d boards in the system.\n" % pb_count_boards())
 
@@ -240,6 +243,12 @@ class PulseSequence:
     @property
     def controller(self):
         return self._controller
+
+    def start(self):
+        self._controller.run()
+
+    def stop(self):
+        self._controller.stop()
 
 
 class Marker:

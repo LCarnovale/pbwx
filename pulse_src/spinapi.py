@@ -53,6 +53,10 @@ except:
 		DBG_MODE = True
 		spinapi = spinapi_debug()
 		pass
+finally:
+	if type(spinapi) != spinapi_debug:
+		print("spinapi module loaded successfully")
+
 	
 def enum(**enums):
     return type('Enum', (), enums)

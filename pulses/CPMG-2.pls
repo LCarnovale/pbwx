@@ -6,10 +6,11 @@ tau : 2000ns
 green_rise_t : 10ns
 IR_rise : 10ns
 !========   Init pol     
-8: 200   | 0 excite_t IR_rise |                                   | # Green Laser
-7: 200   |            | 0 pi_h tau+pi+tau+tau+pi+tau pi_h | # MW-X
-6: 200   |            | pi_h+tau pi tau+tau pi tau+pi_h   | # MW-Y
-0: 0 200 |            |                                   | 0 IR_rise # Trapping beam 
+0: 0 10  |                                                            # Trigger
+1:       | 0 excite_t IR_rise |                           |           # Green Laser
+2: 0 200 |            |                                   | 0 IR_rise # Trapping beam 
+3:       |            | pi_h+tau pi tau+tau pi tau+pi_h   |           # MW-Y
+4:       |            | 0 pi_h tau+pi+tau+tau+pi+tau pi_h |           # MW-X
 !=== Structure
 0, 1, 2^N, 3
 !=== Comments

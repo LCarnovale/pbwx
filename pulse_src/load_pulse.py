@@ -1,3 +1,4 @@
+from os import read
 from .structured_seq import StructuredSequence
 import numpy as np
 from astropy import units as u
@@ -26,6 +27,7 @@ def read_pulse_file(filename):
     # Get the parameter values
     for line in lines:
         line = ignore_comments(line)
+        if not line: continue
         if "!" in line: break
         if "=" in line: continue
         sym, value = line.split(":")
@@ -42,6 +44,7 @@ def read_pulse_file(filename):
     structure = None
     for ln, line in enumerate(lines):
         line = ignore_comments(line)
+        if not line: continue
         if in_params_block:
             if "!" in line:
                 in_params_block = False
@@ -118,9 +121,10 @@ if __name__ == "__main__":
     # # s = e1 + e2
     # e1.plot_sequence()
     
-    p = read_pulse_file("pulses/CPMG-2.pls")
-    a = p.eval(N=5)
-
+    # p = read_pulse_file("pulses/CPMG-2.pls")
+    # a = p.eval(N=5)
+    p = read_pulse_file("pulses/test.pls")
+    a = p.eval(N=3)
 
     
 
