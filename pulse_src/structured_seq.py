@@ -84,6 +84,17 @@ class StructuredSequence:
     def structure(self, struct:str):
         self.parse_structure(struct)
 
+    @property
+    def params(self):
+        params = {k:None for k in self.rep_params}
+        for c in self.children:
+            try:
+                params.update(c.params)
+            except AttributeError:
+                pass
+        return params
+
+
     def eval(self, **kw_params) -> RawSequence:
         total = None
         for idx, reps in zip(self._struct_order, self._reps):
@@ -93,14 +104,16 @@ class StructuredSequence:
             
             if type(reps) is str:
                 try:
-                    reps = kw_params[reps]
+                    reps = int(kw_params[reps])
                 except KeyError:
                     raise ValueError("Value for repetitions parameter %s must be supplied." % reps)
             for i in range(reps):
                 total = total + c
         return total
 
-
+    def plot_sequence(self, **kw_params):
+        seq = self.eval(**kw_params)
+        seq.plot_sequence()
 
 if __name__ == "__main__":
     A = StructuredSequence(1, 2, 3, structure="0, 1^N, 0^M, 2")
