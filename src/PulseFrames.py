@@ -40,31 +40,54 @@ class RepetitionsFrame(ttk.Frame):
         global _RF_instance
         super(RepetitionsFrame, self).__init__(parent, **kwargs)
         self.to_remove = []
+        self.reps_num = tk.StringVar(self, "1")
+        self.progression_type = tk.StringVar(self, "LIN") # LIN or LOG
         self.init_UI()
         _RF_instance = self
 
     def init_UI(self):
         # Parameter list | Repition options
         pane = tk.PanedWindow(self, orient=tk.HORIZONTAL)
+        pane.pack(fill=tk.BOTH, expand=True)
 
-        param_list = tk.Frame(pane, background="red")
+        param_list = tk.Frame(pane)
+        # param_list.grid(row=0, column=0, sticky=tk.W+tk.E)
         param_list.grid_columnconfigure(0, weight=1)
         param_list.grid_columnconfigure(1, weight=1)
         param_list.grid_columnconfigure(2, weight=1)
+        rep_options = tk.Frame(pane)
+        # rep_options.grid(row=0, column=0, sticky=tk.W+tk.E)
+        rep_options.grid_columnconfigure(0, weight=2)
+        rep_options.grid_columnconfigure(1, weight=1)
+        rep_options.grid_columnconfigure(2, weight=1)
+        # param_list.pack(fill=tk.BOTH, expand=True)
+        # rep_options.pack(fill=tk.BOTH, expand=True)
+        num_reps_lbl = tk.Label(rep_options, text="Number of Repitions")
+        num_reps_lbl.grid(row=0, column=0, sticky=tk.E)
+        num_reps_box = tk.Entry(rep_options, text=1, 
+            textvariable=self.reps_num)
+        num_reps_box.grid(row=0, column=1, columnspan=2, sticky=tk.W+tk.E)
+        reps_type_lbl = tk.Label(rep_options, text="Progression mode:")
+        reps_type_lbl.grid(row=1, column=0, sticky=tk.E)
+        reps_lin_radio = tk.Radiobutton(rep_options, text="Linear", value="LIN", 
+            variable=self.progression_type)
+        reps_log_radio = tk.Radiobutton(rep_options, text="Log", value="LOG", 
+            variable=self.progression_type)
+        reps_lin_radio.grid(row=1, column=1, sticky=tk.W)
+        reps_log_radio.grid(row=1, column=2, sticky=tk.W)
         label1 = tk.Label(param_list, text="Parameter list")
         label1.grid(row=0, column=0, sticky=tk.W)
         pane.add(param_list, stretch="always")
-        param_list.pack(fill=tk.BOTH, expand=True)
-
+        pane.add(rep_options, stretch="always")
         self.param_list = param_list
         self.init_param_list()
 
-        options = tk.Frame(pane, background="green")
-        label2 = tk.Label(options, text="Repition Options")
-        label2.grid(row=0, column=0, sticky=tk.E)
-        pane.add(options, stretch="always")
-        options.pack(fill=tk.BOTH, expand=True)
-        self.options_pane = options
+        # options = tk.Frame(pane, background="green")
+        # label2 = tk.Label(options, text="Repition Options")
+        # label2.grid(row=0, column=0, sticky=tk.E)
+        # pane.add(options, stretch="always")
+        # options.pack(fill=tk.BOTH, expand=True)
+        # self.options_pane = options
 
 
     @staticmethod
@@ -75,7 +98,7 @@ class RepetitionsFrame(ttk.Frame):
         for e in self.to_remove:
             e.grid_forget()
         if pulse_obj is None:
-            tb = tk.Label(self, text="Select a pulse file")
+            tb = tk.Label(self.param_list, text="Select a pulse file")
             tb.grid(row=0, column=0, sticky=tk.W+tk.E)
             self.to_remove = [tb]
         else:
@@ -101,7 +124,7 @@ class RepetitionsFrame(ttk.Frame):
             n = 1 # Starting row
             self.to_remove = []
             for i, l in enumerate(["Parameter", "Start", "End"]):
-                lbl = tk.Label(self, text=l)
+                lbl = tk.Label(self.param_list, text=l)
                 lbl.grid(row=0, column=i)
                 self.to_remove.append(lbl)
                 
@@ -117,12 +140,12 @@ class RepetitionsFrame(ttk.Frame):
                 else:
                     print(var, "already has a trace")
                 # Create row
-                lbl = tk.Label(self, text=k)
+                lbl = tk.Label(self.param_list, text=k)
                 lbl.grid(row=row+n, column=0, sticky=tk.W+tk.E)
-                box = tk.Entry(self, text=v, 
+                box = tk.Entry(self.param_list, text=v, 
                     validate="focusout", textvariable=var)
                 box.grid(row=row+n, column=2, sticky=tk.W+tk.E)
-                set_lbl = tk.Label(self, text=var.get(), textvariable=tk.StringVar(name=k+"_lbl"))
+                set_lbl = tk.Label(self.param_list, text=var.get(), textvariable=tk.StringVar(name=k+"_lbl"))
                 set_lbl.grid(row=row+n, column=1, sticky=tk.W+tk.E)
                 self.to_remove.append(lbl)
                 self.to_remove.append(box)
