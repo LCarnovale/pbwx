@@ -1,4 +1,24 @@
 from .pulse_utils import RawSequence, AbstractSequence
+import re
+
+def parse_complex_structure(children_list, structure):
+    """ For parsing structures such as:
+        structure="0, 1, (2, (0, 1)^M)^N, 3"
+    """
+    parts = re.split(r"\([\d\s\w\^,]*?\)", structure, maxsplit=1)
+    if len(parts) == 1:
+        # No more subparts
+        return StructuredSequence(*children_list, structure=structure)
+    else:
+        A, B = parts
+        An, Bn = len(A), len(B)
+        sub_str = structure[An+1:-(Bn+1)]
+        new_child = parse_complex_structure(children_list, sub_str)
+        new_n = len(children_list)
+        new_struct = A + str(new_n) + B
+        return parse_complex_structure(children_list + [new_child], new_struct)
+
+
 
 class StructuredSequence:
     def __init__(self, *children, structure:str=None):
@@ -97,10 +117,21 @@ class StructuredSequence:
 
     def eval(self, **kw_params) -> RawSequence:
         total = None
+        # Check for lists
+        list_params = {}
+        for k, v in kw_params.items():
+            try:
+                v[0]
+            except:
+                continue
+            else:
+                list_params[k] = v
+                kw_params[k] = v[0]
         for idx, reps in zip(self._struct_order, self._reps):
             # Get the relevant child.
-            c = self.children[idx]
-            c = c.eval(**kw_params)
+            child = self.children[idx]
+            if not list_params:
+                c = child.eval(**kw_params)
             
             if type(reps) is str:
                 try:
@@ -108,6 +139,10 @@ class StructuredSequence:
                 except KeyError:
                     raise ValueError("Value for repetitions parameter %s must be supplied." % reps)
             for i in range(reps):
+                if list_params:
+                    new_kw = kw_params.copy()
+                    new_kw.update({k:v[i] for k, v in list_params.items()})
+                    c = child.eval(**new_kw)
                 total = total + c
         return total
 

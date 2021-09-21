@@ -1,5 +1,5 @@
 from os import read
-from .structured_seq import StructuredSequence
+from .structured_seq import parse_complex_structure
 import numpy as np
 from astropy import units as u
 
@@ -98,7 +98,7 @@ def read_pulse_file(filename):
     if len(pulses) == 1:
         return pulse
     else:
-        struct_pulse = StructuredSequence(*pulses, structure=structure)
+        struct_pulse = parse_complex_structure(pulses, structure)
         return struct_pulse
 
 
@@ -121,10 +121,11 @@ if __name__ == "__main__":
     # # s = e1 + e2
     # e1.plot_sequence()
     
-    # p = read_pulse_file("pulses/CPMG-2.pls")
+    p = read_pulse_file("pulses/CPMG-2.pls")
     # a = p.eval(N=5)
-    p = read_pulse_file("pulses/test.pls")
-    a = p.eval(N=3)
+    # p = read_pulse_file("pulses/test.pls")
+    a = p.eval(N=4, M=64, tau=np.linspace(12, 2000, 64))
+    a.plot_sequence()
 
     
 

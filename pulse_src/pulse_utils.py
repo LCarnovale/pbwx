@@ -459,7 +459,7 @@ class RawSequence(PulseSequence):
         frames = frames[:,nonz_flags]
         flag_nums = flag_nums[nonz_flags]
         # Vertically separate each flag to make it look better
-        plot_shifts = np.arange(len(nonz_flags))
+        plot_shifts = np.arange(len(nonz_flags)) * 1.1
         plt.plot(t_ax, frames + plot_shifts, drawstyle='steps-pre')
         plt.legend([str(i) for i in flag_nums])
         plt.show()
