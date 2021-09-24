@@ -8,7 +8,7 @@ IR_rise : 10ns
 hold_time : 1ms
 !========   Init pol                                      Hold particle
 0: 0 10  |                                                                     # Trigger
-1:       | 0 excite_t |                           |        |           # Green Laser
+1:       | 0 excite_t |                                   |        |           # Green Laser
 2: 0 200 |            |                                   | 0 hold_time | 0 IR_rise # Trapping beam 
 3:       |            | pi_h+tau pi tau+tau pi tau+pi_h   |        |           # MW-Y
 4:       |            | 0 pi_h tau+pi+tau+tau+pi+tau pi_h |        |           # MW-X
