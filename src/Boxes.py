@@ -10,11 +10,13 @@ from .PulseFrames import PulseShapeFrame, RepetitionsFrame
 import socket
 from sock import PulseCommunicator, HOST, PORT
 from main import IR_WHEN_OFF, IR_ON_PLS
+_SelPF_instance = None
 class SelectPulseFrame(tk.LabelFrame):
     def __init__(self, parent, root_folder, controller, *args, **kwargs):
         """ Provide a parent object and a path in `root_folder` 
         for the folder to look for `.pls` files
         """
+        global _SelPF_instance
         super(SelectPulseFrame, self).__init__(parent, *args, text='Select Pulse Sequence', **kwargs)
         self.root_folder = root_folder
         self.parent = parent
@@ -24,6 +26,7 @@ class SelectPulseFrame(tk.LabelFrame):
         # self.seq = pulse_sequence
 
         self.init_UI()
+        _SelPF_instance = self
         
     def init_UI(self):
         try:
@@ -148,7 +151,13 @@ class SetParameterFrame(tk.LabelFrame):
         self.sock_thread.start()
         if IR_WHEN_OFF:
             # Load IR on:
-            ir_on = loader.read_pulse_file(IR_ON_PLS)
+            try:
+                ir_on = loader.read_pulse_file(IR_ON_PLS)
+            except:
+                new_pls = _SelPF_instance.root_folder + "/" + IR_ON_PLS
+                ir_on = loader.read_pulse_file(new_pls)
+
+            self.ir_pulse = ir_on
             type(self).program_a_pulse(ir_on)
             self.start_seq()
 
@@ -265,8 +274,7 @@ class SetParameterFrame(tk.LabelFrame):
         print("Stopping sequence")
         self.pls_controller.stop()
         if IR_WHEN_OFF:
-            ir_on = loader.read_pulse_file(IR_ON_PLS)
-            type(self).program_a_pulse(ir_on)
+            type(self).program_a_pulse(self.ir_pulse)
             self.start_seq()
 
             
