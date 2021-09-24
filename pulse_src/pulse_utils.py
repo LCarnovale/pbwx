@@ -494,6 +494,14 @@ class RawSequence(PulseSequence):
                 return None
         
         raise Exception("No programming has been done and hence no refs exist yet.")
+    
+    @property
+    def length_ns(self):
+        lengths = [sum(x) for x in self.flag_seqs.values() if x is not None]
+        return max(lengths)
+
+        
+
 
 def extract_ns(value):
     """ If `value` is a Quantity, convert to nanoseconds and return dimensionless value,
