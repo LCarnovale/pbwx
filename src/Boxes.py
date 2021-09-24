@@ -259,6 +259,7 @@ class SetParameterFrame(tk.LabelFrame):
             print("Sequence parameters have not all been specified.")
         else:
             pu.init_board()
+            _SPF_instance.pls_controller.stop()
             raw_seq.program_seq(pu.actions.Branch(0))
         # Send to client
         try:
@@ -275,10 +276,10 @@ class SetParameterFrame(tk.LabelFrame):
         print("Starting sequence")
         self.pls_controller.run()
 
-    def stop_seq(self, *args):
+    def stop_seq(self, *args, no_ir=False):
         print("Stopping sequence")
         self.pls_controller.stop()
-        if IR_WHEN_OFF:
+        if IR_WHEN_OFF and not no_ir:
             type(self).program_a_pulse(self.ir_pulse, {})
             self.start_seq()
 
