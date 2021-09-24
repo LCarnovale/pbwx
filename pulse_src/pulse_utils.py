@@ -439,7 +439,7 @@ class RawSequence(PulseSequence):
             if err:
                 print("Aborting programming, exiting programming mode.")
             else:
-                print("Programming completed successfully.")
+                print("Programming completed successfully. Sequence length: %d ns" % self.length_ns)
             self.controller.prog_exit()
 
     def plot_sequence(self):
