@@ -1,5 +1,6 @@
 import tkinter as tk
 import tkinter.ttk as ttk
+from . import Boxes
 _PSF_instance = None
 class PulseShapeFrame(ttk.Frame):
     def __init__(self, parent, **kwargs):
@@ -42,6 +43,8 @@ class RepetitionsFrame(ttk.Frame):
         self.to_remove = []
         self.reps_num = tk.StringVar(self, "1")
         self.progression_type = tk.StringVar(self, "LIN") # LIN or LOG
+        self.end_vars = {}
+        self.start_vars = {}
         self.init_UI()
         _RF_instance = self
 
@@ -73,6 +76,10 @@ class RepetitionsFrame(ttk.Frame):
             variable=self.progression_type)
         reps_log_radio = tk.Radiobutton(rep_options, text="Log", value="LOG", 
             variable=self.progression_type)
+
+        prog_button = tk.Button(rep_options, text="Program",
+            command=self.program_seq)
+        prog_button.grid(row=2, column=1, sticky=tk.W+tk.E)
         reps_lin_radio.grid(row=1, column=1, sticky=tk.W)
         reps_log_radio.grid(row=1, column=2, sticky=tk.W)
         label1 = tk.Label(param_list, text="Parameter list")
@@ -102,10 +109,11 @@ class RepetitionsFrame(ttk.Frame):
             tb.grid(row=0, column=0, sticky=tk.W+tk.E)
             self.to_remove = [tb]
         else:
-            self.params = pulse_obj.params.copy()
-            param_list = list(self.params.items())
+            self.end_vars = pulse_obj.params.copy()
+            param_list = list(self.end_vars.items())
             param_vars = {k+"_reps":tk.StringVar(name=k+"_reps", value=str((int(v) if v is not None else 0)))
                 for k, v in param_list}
+            # TODO: I don't think lbl_vars is actually needed here?
             lbl_vars = {k+"_reps":tk.StringVar(name=k+"_reps_lbl", value=str((int(v) if v is not None else 0)))
                 for k, v in param_list}
             def _update_param(param_key, params, param_vars, lbl_vars):
@@ -118,7 +126,8 @@ class RepetitionsFrame(ttk.Frame):
                     pass
                 else:
                     lbl_vars[param_key].set(str(new_value))
-                    self.params[param_key] = new_value
+                    # :-5 to remove the '_reps' tag at the end of each name
+                    self.end_vars[param_key[:-5]] = new_value
 
             # self.param_vals.update(**params)
             n = 1 # Starting row
@@ -132,13 +141,14 @@ class RepetitionsFrame(ttk.Frame):
                 # Create variable
                 var = param_vars[k+"_reps"]
                 # Bind variable to row
-                if len(var.trace_info()) == 0:
+                # if len(var.trace_info()) == 0:
                     # If the same pulse sequence is loaded again the 
                     # same variable and trace will be loaded, don't add another
                     # trace to it. 
-                    var.trace_add("write", lambda name, *args: _update_param(name, self.params, param_vars, lbl_vars))
-                else:
-                    print(var, "already has a trace")
+                var.trace_add("write", (lambda name, *args: _update_param(name, self.end_vars, param_vars, lbl_vars)))
+                # else:
+                #     pass
+                #     print(var, "already has a trace")
                 # Create row
                 lbl = tk.Label(self.param_list, text=k)
                 lbl.grid(row=row+n, column=0, sticky=tk.W+tk.E)
@@ -150,3 +160,9 @@ class RepetitionsFrame(ttk.Frame):
                 self.to_remove.append(lbl)
                 self.to_remove.append(box)
                 self.to_remove.append(set_lbl)
+    def program_seq(self):
+        # End values are in self.end_vars
+        # If any are less than the original, that one is constant
+
+        Boxes.SetParameterFrame.program_pulse_reps(
+            n_reps=int(self.reps_num.get()), end_vars=self.end_vars)

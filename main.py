@@ -12,6 +12,7 @@ class AppFrame(tk.Tk):
         super(AppFrame, self).__init__(*args, **kwargs)
         self.title("Pulse manager")
         self.pls_controller = pls.SequenceProgram("Main sequence")
+        self.geometry("800x600")
         self.init_ui()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
     
@@ -28,13 +29,13 @@ class AppFrame(tk.Tk):
         # Left | Right panes
         vbox_left = tk.PanedWindow(main_panel, relief=tk.RAISED, orient=tk.VERTICAL)
         vbox_right = tk.PanedWindow(main_panel, relief=tk.RAISED, orient=tk.VERTICAL)
-        main_panel.add(vbox_left, stretch="always")
-        main_panel.add(vbox_right, stretch="always")
+        main_panel.add(vbox_left, stretch="always", width=300)
+        main_panel.add(vbox_right, stretch="always",width=500)
 
         # Pulse select panel
         select_pulse_pane = SelectPulseFrame(vbox_left, PULSE_FOLDER, self.pls_controller, padx=5, pady=5, width=50)
-        select_pulse_pane.pack(fill=tk.BOTH, expand=True)
-        vbox_left.add(select_pulse_pane, stretch="always")
+        select_pulse_pane.pack(fill=tk.BOTH)
+        vbox_left.add(select_pulse_pane)
         # Parameter panel
         edit_params_bs = SetParameterFrame(vbox_left, self.pls_controller)
         # Pulse tools panel

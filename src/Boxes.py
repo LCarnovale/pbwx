@@ -4,6 +4,8 @@ import os
 import sys
 from threading import Thread
 
+import numpy as np
+
 from pulse_src import load_pulse as loader
 from pulse_src import pulse_utils as pu
 from .PulseFrames import PulseShapeFrame, RepetitionsFrame
@@ -95,8 +97,14 @@ class SocketThread(Thread):
         self.socket.listen()
         while True:
             print("Socket thread waiting for connection.")
-            self.conn, addr = self.socket.accept()
-            print("Socket thread connected.")
+            try:
+                self.conn, addr = self.socket.accept()
+            except:
+                print("Socket died. Ending socket thread.")
+                self.kill()
+                break
+            else:
+                print("Socket thread connected.")
             if self.do_wait:
                 try:
                     data = self.conn.recv(8)
@@ -267,6 +275,33 @@ class SetParameterFrame(tk.LabelFrame):
         except Exception as e:
             print("Failed to send info to client, message: " + str(e))
 
+
+    @staticmethod
+    def program_pulse_reps(n_reps=None, end_vars=None):
+        if n_reps is None or end_vars is None:
+            raise Exception("Both parameters must be specified.")
+        
+        # Start params: self.params
+        these_params = _SPF_instance.params.copy()
+        print("start:", these_params)
+        print("end:", end_vars)
+        print("Num reps:", n_reps)
+        for key in end_vars:
+            if key not in these_params: continue
+            if end_vars[key] > these_params[key]:
+                try:
+                    print("Making axis for:", key)
+                    axis = np.linspace(these_params[key], end_vars[key], n_reps)
+                except:
+                    print("Unable to create axis for %s" % key)
+                    continue
+                else:
+                    these_params[key] = axis
+                    print(axis)
+
+        print(these_params)
+        type(_SPF_instance).program_a_pulse(_SPF_instance.pulse, these_params)
+        
 
     def program_pulse(self, *args, pulse=None):
         SetParameterFrame.program_a_pulse(self.pulse, self.params)
