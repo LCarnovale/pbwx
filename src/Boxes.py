@@ -89,26 +89,34 @@ class SocketThread(Thread):
     def run(self):
         # Wait for data to be received
         self.socket.listen()
-        print("Socket thread waiting for connection.")
-        self.conn, addr = self.socket.accept()
-        print("Socket thread connected.")
         while True:
+            print("Socket thread waiting for connection.")
+            self.conn, addr = self.socket.accept()
+            print("Socket thread connected.")
             if self.do_wait:
-                data = self.conn.recv(8)
+                try:
+                    data = self.conn.recv(8)
+                except:
+                    print("Socket receive failed, the other end probably closed.")
+                    break
                 if len(data) == 0:
                     print("Stream ended")
                     break
                 if "START" in str(data):
-                    print("Starting from socket message")
+                    print("Received start request")
                     _SPF_instance.start_seq()
-                if "STOP" in str(data):
-                    print("Stopping from socket message")
+                elif "STOP" in str(data):
+                    print("Received stop request")
                     self.stop_wait()
                     _SPF_instance.stop_seq()
-                if "EXIT" in str(data):
+                elif "EXIT" in str(data):
+                    print("Received exit request")
                     self.stop_wait()
                     self.kill()
                     break
+                else:
+                    print("Received unknown message: %s" % str(data))
+
             if self.killed:
                 break
             
@@ -250,9 +258,11 @@ class SetParameterFrame(tk.LabelFrame):
         #     raw_seq.program_seq(pu.actions.Branch(0))
 
     def start_seq(self, *args):
+        print("Starting sequence")
         self.pls_controller.run()
 
     def stop_seq(self, *args):
+        print("Stopping sequence")
         self.pls_controller.stop()
 
             
