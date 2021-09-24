@@ -156,13 +156,18 @@ class SetParameterFrame(tk.LabelFrame):
             except:
                 new_pls = _SelPF_instance.root_folder + "/" + IR_ON_PLS
                 ir_on = loader.read_pulse_file(new_pls)
-
+            ir_on.set_controller(self.pls_controller)
             self.ir_pulse = ir_on
-            type(self).program_a_pulse(ir_on)
+            type(self).program_a_pulse(ir_on, {})
             self.start_seq()
 
     def __del__(self):
-        self.sock_thread.kill()
+        self.kill_threads()
+
+    @staticmethod
+    def kill_threads(*args):
+        _SPF_instance.sock_thread.kill()
+        
 
     def init_UI(self):
         self.grid_columnconfigure(0, weight=1)
@@ -274,7 +279,7 @@ class SetParameterFrame(tk.LabelFrame):
         print("Stopping sequence")
         self.pls_controller.stop()
         if IR_WHEN_OFF:
-            type(self).program_a_pulse(self.ir_pulse)
+            type(self).program_a_pulse(self.ir_pulse, {})
             self.start_seq()
 
             

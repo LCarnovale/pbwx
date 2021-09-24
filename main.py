@@ -13,7 +13,13 @@ class AppFrame(tk.Tk):
         self.title("Pulse manager")
         self.pls_controller = pls.SequenceProgram("Main sequence")
         self.init_ui()
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
     
+    def on_close(self):
+        SetParameterFrame.kill_threads()
+        print("Goodbye")
+        self.destroy()
+
     def init_ui(self):
         # Main window pane
         main_panel = tk.PanedWindow(self, relief=tk.RAISED, orient=tk.HORIZONTAL)
