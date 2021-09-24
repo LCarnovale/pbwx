@@ -65,15 +65,30 @@ class MockClient:
     def __del__(self):
         self.sock.close()
     
+_client = None
+_conn = None
+def establish_client(force=False):
+    global _client, _conn
+    if _client is None or force:
+        _client = sc.socket()
+        _client.bind((HOST,PORT))
+        # Try connect
+        _client.listen(1)
+        _conn, addr = _client.accept()
+    
 def get_data(byte_order=byte_order, n_bytes=16):
-    client = sc.socket()
-    client.bind((HOST,PORT))
-    # Try connect
-    client.listen(1)
-    conn, addr = client.accept()
-    byts = conn.recv(n_bytes)
+    establish_client()
+    byts = _conn.recv(n_bytes)
     num = int.from_bytes(byts, byte_order)
     return num
+
+def send_start():
+    establish_client()
+    _conn.send(b"START")
+
+def send_stop():
+    establish_client()
+    _conn.send(b"STOP")
 
 def test_server():
     with PulseCommunicator() as pc:

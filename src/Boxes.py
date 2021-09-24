@@ -2,6 +2,7 @@ import tkinter as tk
 import tkinter.ttk as ttk
 import os
 import sys
+from threading import Thread
 
 from pulse_src import load_pulse as loader
 from pulse_src import pulse_utils as pu
@@ -67,6 +68,32 @@ def is_num(x, *args):
         return True
 
 _SPF_instance = None
+class SocketThread(Thread):
+    def __init__(self, socket):
+        self.socket = socket
+        self.do_wait = True
+
+    def stop_wait(self):
+        self.do_wait = False
+
+    def start(self):
+        # Wait for data to be received
+        self.socket.listen()
+        while self.do_wait:
+            print("Socket thread waiting for connection.")
+            conn, addr = self.socket.accept()
+            while True:
+                data = conn.recv(8)
+                if len(data) == 0:
+                    print("Stream ended")
+                    break
+                if "START" in str(data):
+                    print("Starting from socket message")
+                    _SPF_instance.start_seq()
+                if "STOP" in str(data):
+                    print("Stopping from socket message")
+                    _SPF_instance.stop_seq()
+
 class SetParameterFrame(tk.LabelFrame):
     _instance = None
     def __init__(self, parent, pls_controller, *args, **kwargs):
