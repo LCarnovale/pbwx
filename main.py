@@ -5,7 +5,8 @@ from src.Boxes import *
 import pulse_src.pulse_utils as pls
 
 PULSE_FOLDER = "pulses"
-
+IR_WHEN_OFF = True
+IR_ON_PLS = "pulses/IR_ON.pls"
 class AppFrame(tk.Tk):
     def __init__(self, *args, **kwargs):
         super(AppFrame, self).__init__(*args, **kwargs)

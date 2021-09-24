@@ -9,6 +9,7 @@ from pulse_src import pulse_utils as pu
 from .PulseFrames import PulseShapeFrame, RepetitionsFrame
 import socket
 from sock import PulseCommunicator, HOST, PORT
+from main import IR_WHEN_OFF, IR_ON_PLS
 class SelectPulseFrame(tk.LabelFrame):
     def __init__(self, parent, root_folder, controller, *args, **kwargs):
         """ Provide a parent object and a path in `root_folder` 
@@ -145,6 +146,11 @@ class SetParameterFrame(tk.LabelFrame):
         # self.pc = PulseCommunicator()
         self.sock_thread = SocketThread()
         self.sock_thread.start()
+        if IR_WHEN_OFF:
+            # Load IR on:
+            ir_on = loader.read_pulse_file(IR_ON_PLS)
+            type(self).program_a_pulse(ir_on)
+            self.start_seq()
 
     def __del__(self):
         self.sock_thread.kill()
@@ -249,21 +255,19 @@ class SetParameterFrame(tk.LabelFrame):
 
     def program_pulse(self, *args, pulse=None):
         SetParameterFrame.program_a_pulse(self.pulse, self.params)
-        # try:
-        #     raw_seq = self.pulse.eval(**self.params)
-        # except:
-        #     print("Sequence parameters have not all been specified.")
-        # else:
-        #     pu.init_board()
-        #     raw_seq.program_seq(pu.actions.Branch(0))
 
     def start_seq(self, *args):
+        self.pls_controller.stop() # This is fine to run even if already stopped.
         print("Starting sequence")
         self.pls_controller.run()
 
     def stop_seq(self, *args):
         print("Stopping sequence")
         self.pls_controller.stop()
+        if IR_WHEN_OFF:
+            ir_on = loader.read_pulse_file(IR_ON_PLS)
+            type(self).program_a_pulse(ir_on)
+            self.start_seq()
 
             
 

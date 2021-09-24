@@ -76,6 +76,8 @@ class MockClient:
     def __del__(self):
         self.sock.close()
     
+
+# TODO: Replace old _conn variables with client
 _client = None
 _conn = None
 def establish_client(force=False):
