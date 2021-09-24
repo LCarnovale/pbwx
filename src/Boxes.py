@@ -6,6 +6,7 @@ import sys
 from pulse_src import load_pulse as loader
 from pulse_src import pulse_utils as pu
 from .PulseFrames import PulseShapeFrame, RepetitionsFrame
+from sock import PulseCommunicator
 class SelectPulseFrame(tk.LabelFrame):
     def __init__(self, parent, root_folder, controller, *args, **kwargs):
         """ Provide a parent object and a path in `root_folder` 
@@ -78,6 +79,8 @@ class SetParameterFrame(tk.LabelFrame):
         self.pulse = None
         self.init_UI()
         _SPF_instance = self
+        # Open and make socket
+        self.pc = PulseCommunicator()
 
     def init_UI(self):
         self.grid_columnconfigure(0, weight=1)
@@ -161,14 +164,31 @@ class SetParameterFrame(tk.LabelFrame):
         print(self.params)
         self.pulse.plot_sequence(**self.params)
 
-    def program_pulse(self, *args):
+    @staticmethod
+    def program_a_pulse(pulse, params, *args):
         try:
-            raw_seq = self.pulse.eval(**self.params)
+            raw_seq = pulse.eval(**params)
         except:
             print("Sequence parameters have not all been specified.")
         else:
             pu.init_board()
             raw_seq.program_seq(pu.actions.Branch(0))
+        # Send to client
+        try:
+            _SPF_instance.pc.send_info(raw_seq)
+        except Exception as e:
+            print("Failed to send info to client, message: " + str(e))
+
+
+    def program_pulse(self, *args, pulse=None):
+        SetParameterFrame.program_a_pulse(self.pulse, self.params)
+        # try:
+        #     raw_seq = self.pulse.eval(**self.params)
+        # except:
+        #     print("Sequence parameters have not all been specified.")
+        # else:
+        #     pu.init_board()
+        #     raw_seq.program_seq(pu.actions.Branch(0))
 
     def start_seq(self, *args):
         self.pls_controller.run()

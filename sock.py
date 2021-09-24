@@ -10,6 +10,8 @@ class PulseCommunicator:
         # Create socket
         self.sock = sc.socket()
         # Connect with client
+
+    def do_connect(self):
         try:
             self.sock.connect((HOST, PORT))
         except Exception as e:
@@ -20,7 +22,12 @@ class PulseCommunicator:
         # Send pulse length:
         length = raw_seq.length_ns
         length = int(length).to_bytes(16, byte_order)
-        self.sock.send(length)
+        try:
+            self.sock.send(length)
+        except:
+            self.do_connect()
+            self.sock.send(length)
+
 
     def __enter__(self):
         print("entering")
@@ -58,6 +65,15 @@ class MockClient:
     def __del__(self):
         self.sock.close()
     
+def get_data(byte_order=byte_order, n_bytes=16):
+    client = sc.socket()
+    client.bind((HOST,PORT))
+    # Try connect
+    client.listen(1)
+    conn, addr = client.accept()
+    byts = conn.recv(n_bytes)
+    num = int.from_bytes(byts, byte_order)
+    return num
 
 def test_server():
     with PulseCommunicator() as pc:
@@ -68,7 +84,7 @@ def test_client():
     mc.go()
 
 if __name__ == "__main__":
-    import pulse_src.load_pulse as lp
+    from pulse_src import load_pulse as lp
 
     rp = lp.read_pulse_file("pulses/test.pls")
     raw = rp.eval(N=2)
