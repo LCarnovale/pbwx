@@ -1,15 +1,26 @@
 import socket as sc
+from threading import Thread
 
 PORT = 33710
 HOST = "localhost"
 byte_order = "big"
 
-
+class _ReceiverThread(Thread):
+    def __init__(self, start_func, stop_func, **kwargs):
+        super(_ReceiverThread, self).__init__(group=None)
+        self.start_func = start_func
+        self.stop_func = stop_func
+    
+    def run(self):
+        pass
 class PulseCommunicator:
-    def __init__(self):
+    def __init__(self):#, start_func, stop_func):
         # Create socket
         self.sock = sc.socket()
+        # self.start_func = start_func
+        # self.stop_func = stop_func
         # Connect with client
+        # self.do_connect()
 
     def do_connect(self):
         try:
@@ -71,10 +82,9 @@ def establish_client(force=False):
     global _client, _conn
     if _client is None or force:
         _client = sc.socket()
-        _client.bind((HOST,PORT))
+        _client.connect((HOST,PORT))
         # Try connect
-        _client.listen(1)
-        _conn, addr = _client.accept()
+        _conn, addr = _client, None
     
 def get_data(byte_order=byte_order, n_bytes=16):
     establish_client()
@@ -86,9 +96,18 @@ def send_start():
     establish_client()
     _conn.send(b"START")
 
+
 def send_stop():
     establish_client()
     _conn.send(b"STOP")
+
+def send_exit():
+    establish_client()
+    _conn.send(b"EXIT")
+
+def send_bytes(bytes):
+    establish_client()
+    _conn.send(bytes)
 
 def test_server():
     with PulseCommunicator() as pc:

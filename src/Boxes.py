@@ -7,7 +7,8 @@ from threading import Thread
 from pulse_src import load_pulse as loader
 from pulse_src import pulse_utils as pu
 from .PulseFrames import PulseShapeFrame, RepetitionsFrame
-from sock import PulseCommunicator
+import socket
+from sock import PulseCommunicator, HOST, PORT
 class SelectPulseFrame(tk.LabelFrame):
     def __init__(self, parent, root_folder, controller, *args, **kwargs):
         """ Provide a parent object and a path in `root_folder` 
@@ -69,21 +70,31 @@ def is_num(x, *args):
 
 _SPF_instance = None
 class SocketThread(Thread):
-    def __init__(self, socket):
-        self.socket = socket
+    def __init__(self):
+        super(SocketThread, self).__init__(group=None)
+        self.socket = socket.socket()
+        self.socket.bind((HOST, PORT))
         self.do_wait = True
+        self.send_buffer = None
+        self.conn = None
+        self.killed = False
 
     def stop_wait(self):
         self.do_wait = False
 
-    def start(self):
+    def kill(self):
+        self.socket.close()
+        self.killed = True
+
+    def run(self):
         # Wait for data to be received
         self.socket.listen()
-        while self.do_wait:
-            print("Socket thread waiting for connection.")
-            conn, addr = self.socket.accept()
-            while True:
-                data = conn.recv(8)
+        print("Socket thread waiting for connection.")
+        self.conn, addr = self.socket.accept()
+        print("Socket thread connected.")
+        while True:
+            if self.do_wait:
+                data = self.conn.recv(8)
                 if len(data) == 0:
                     print("Stream ended")
                     break
@@ -92,7 +103,23 @@ class SocketThread(Thread):
                     _SPF_instance.start_seq()
                 if "STOP" in str(data):
                     print("Stopping from socket message")
+                    self.stop_wait()
                     _SPF_instance.stop_seq()
+                if "EXIT" in str(data):
+                    self.stop_wait()
+                    self.kill()
+                    break
+            if self.killed:
+                break
+            
+    def send_info(self, raw_seq, byte_order="big"):
+        # Send pulse length:
+        if self.conn:
+            length = raw_seq.length_ns
+            length = int(length).to_bytes(16, byte_order)
+            self.conn.send(length)
+        else:
+            print("No connection to send data on yet")
 
 class SetParameterFrame(tk.LabelFrame):
     _instance = None
@@ -107,7 +134,12 @@ class SetParameterFrame(tk.LabelFrame):
         self.init_UI()
         _SPF_instance = self
         # Open and make socket
-        self.pc = PulseCommunicator()
+        # self.pc = PulseCommunicator()
+        self.sock_thread = SocketThread()
+        self.sock_thread.start()
+
+    def __del__(self):
+        self.sock_thread.kill()
 
     def init_UI(self):
         self.grid_columnconfigure(0, weight=1)
@@ -202,7 +234,7 @@ class SetParameterFrame(tk.LabelFrame):
             raw_seq.program_seq(pu.actions.Branch(0))
         # Send to client
         try:
-            _SPF_instance.pc.send_info(raw_seq)
+            _SPF_instance.sock_thread.send_info(raw_seq)
         except Exception as e:
             print("Failed to send info to client, message: " + str(e))
 
