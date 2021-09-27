@@ -34,7 +34,11 @@ def read_pulse_file(filename):
         sym, value = sym.strip(), value.strip()
         if sym not in found_symbols:
             print(f"Found symbol: {sym}")
-            found_symbols[sym] = u.Quantity(value)
+            if "." not in value:
+                dtype = int
+            else:
+                dtype = float
+            found_symbols[sym] = u.Quantity(value, dtype=dtype)
 
     pulses = []
 
@@ -74,10 +78,14 @@ def read_pulse_file(filename):
                 if word == '|':
                     # Move onto the next sequence
                     seq_num += 1
-                    continue  
-                val = u.Quantity(word)
+                    continue
+                if "." not in word:
+                    dtype = int
+                else:
+                    dtype = float
+                val = u.Quantity(word, dtype=dtype)
                 if str(val.unit) == '':
-                    val *= 1*u.ns
+                    val *= u.ns
             except (ValueError, TypeError):
                 # Try keep it as a symbol
                 val = word
@@ -85,7 +93,7 @@ def read_pulse_file(filename):
                     print(f"Found symbol: {val}")
                     found_symbols[val] = None
             else:
-                val = int(val / u.ns) # Convert to value in nanoseconds
+                val = round(val.to("ns").value) # Convert to value in nanoseconds
             finally:
                 if word != "|":
                     seq_all[seq_num].append(val)

@@ -1,17 +1,17 @@
+import os
+import socket
 import tkinter as tk
 import tkinter.ttk as ttk
-import os
-import sys
 from threading import Thread
 
 import numpy as np
-
 from pulse_src import load_pulse as loader
 from pulse_src import pulse_utils as pu
+from sock import HOST, PORT
+
+from .pulse_instance import PulseManager
 from .PulseFrames import PulseShapeFrame, RepetitionsFrame
-import socket
-from sock import PulseCommunicator, HOST, PORT
-from main import IR_WHEN_OFF, IR_ON_PLS
+
 _SelPF_instance = None
 class SelectPulseFrame(tk.LabelFrame):
     def __init__(self, parent, root_folder, controller, *args, **kwargs):
@@ -31,14 +31,7 @@ class SelectPulseFrame(tk.LabelFrame):
         _SelPF_instance = self
         
     def init_UI(self):
-        try:
-            pulse_list = os.listdir(self.root_folder)
-        except FileNotFoundError:
-            try:
-                self.root_folder = sys.path[0] + "/./" + self.root_folder
-                pulse_list = os.listdir(self.root_folder)
-            except:
-                raise FileNotFoundError("Unable to find pulse folder.")
+        pulse_list = os.listdir(self.root_folder)
         cb = ttk.Combobox(self, values=pulse_list, state="readonly", 
             textvariable=self.selected_file)
         browse_btn = tk.Button(self, text="Browse", width=8,
@@ -58,9 +51,7 @@ class SelectPulseFrame(tk.LabelFrame):
             print("Error: %s" % e)
         else:
             print("Loaded pulse:", self.pulse)
-            SetParameterFrame.send_pulse_object(self.pulse)
-            RepetitionsFrame.send_pulse_object(self.pulse)
-            PulseShapeFrame.send_pulse_object(self.pulse)
+            PulseManager.set_pulse(self.pulse)
         
 
 
@@ -95,21 +86,33 @@ class SocketThread(Thread):
     def run(self):
         # Wait for data to be received
         self.socket.listen()
+        con_alive = False
+        print("Socket thread waiting for connection.")
         while True:
-            print("Socket thread waiting for connection.")
+            if self.killed:
+                break
             try:
-                self.conn, addr = self.socket.accept()
+                if not con_alive:
+                    self.socket.settimeout(1)
+                    self.conn, addr = self.socket.accept()
+            except socket.timeout:
+                continue
             except:
                 print("Socket died. Ending socket thread.")
                 self.kill()
                 break
             else:
+                con_alive = True
                 print("Socket thread connected.")
             if self.do_wait:
                 try:
+                    self.conn.settimeout(1)
                     data = self.conn.recv(8)
+                except socket.timeout:
+                    continue
                 except:
                     print("Socket receive failed, the other end probably closed.")
+                    con_alive = False
                     break
                 if len(data) == 0:
                     print("Stream ended")
@@ -129,8 +132,6 @@ class SocketThread(Thread):
                 else:
                     print("Received unknown message: %s" % str(data))
 
-            if self.killed:
-                break
             
     def send_info(self, raw_seq, byte_order="big"):
         # Send pulse length:
@@ -146,6 +147,7 @@ class SetParameterFrame(tk.LabelFrame):
     def __init__(self, parent, pls_controller, *args, **kwargs):
         global _SPF_instance
         super(SetParameterFrame, self).__init__(parent, *args, text="Parameter Controls", **kwargs)
+        PulseManager.register(self)
         self.pls_controller = pls_controller
         self.parent = parent
         self.to_remove = [] # UI elements to remove when switching pulses
@@ -157,17 +159,6 @@ class SetParameterFrame(tk.LabelFrame):
         # self.pc = PulseCommunicator()
         self.sock_thread = SocketThread()
         self.sock_thread.start()
-        if IR_WHEN_OFF:
-            # Load IR on:
-            try:
-                ir_on = loader.read_pulse_file(IR_ON_PLS)
-            except:
-                new_pls = _SelPF_instance.root_folder + "/" + IR_ON_PLS
-                ir_on = loader.read_pulse_file(new_pls)
-            ir_on.set_controller(self.pls_controller)
-            self.ir_pulse = ir_on
-            type(self).program_a_pulse(ir_on, {})
-            self.start_seq()
 
     def __del__(self):
         self.kill_threads()
@@ -183,10 +174,11 @@ class SetParameterFrame(tk.LabelFrame):
         self.grid_columnconfigure(2, weight=1)
         self.init_param_list()
 
-    @staticmethod
-    def send_pulse_object(pulse_obj=None):
-        _SPF_instance.init_param_list(pulse_obj)
-        _SPF_instance.pulse = pulse_obj
+    def notify(self, event=None, data=None):
+        if event == PulseManager.Event.PULSE:
+            pulse_obj = PulseManager.get_pulse()
+            self.init_param_list(pulse_obj)
+            self.pulse = pulse_obj
         
     def init_param_list(self, pulse_obj=None):
         for e in self.to_remove:
@@ -199,11 +191,10 @@ class SetParameterFrame(tk.LabelFrame):
             self.params = pulse_obj.params.copy()
             param_vars = {k:tk.StringVar(name=k, value=str((int(v) if v is not None else 0)))
                 for k, v in self.params.items()}
-            print("param vars:", param_vars)
             lbl_vars = {k:tk.StringVar(name=k+"_lbl", value=str((int(v) if v is not None else 0)))
                 for k, v in self.params.items()}
-            def _update_param(param_key, params, param_vars, lbl_vars):
-                # params, param_vars, lbl_vars = dicts
+            def _update_param(param_key, param_vars, lbl_vars):
+                # param_vars, lbl_vars = dicts
                 new_value = param_vars[param_key].get()
                 try:
                     new_value = float(new_value)
@@ -212,7 +203,7 @@ class SetParameterFrame(tk.LabelFrame):
                 else:
                     lbl_vars[param_key].set(str(new_value))
                     self.params[param_key] = new_value
-
+                    PulseManager.set_param_default(**{param_key: new_value})
             # self.param_vals.update(**params)
             n = 1 # Starting row
             self.to_remove = []
@@ -234,16 +225,22 @@ class SetParameterFrame(tk.LabelFrame):
 
                 var.trace_add(
                     "write", 
-                    (lambda name, *args: _update_param(name, self.params, param_vars, lbl_vars))
+                    (lambda name, *args: _update_param(name, param_vars, lbl_vars))
                 )
+                # Store the var here so the repitions panel can get it
+                PulseManager.set_var(k, var)
                 # Create row
+                ## Parameter name
                 lbl = tk.Label(self, text=k)
                 lbl.grid(row=row+n, column=0, sticky=tk.W+tk.E)
+                ## New Value
                 box = ttk.Entry(self, text=v, #increment=1,
                     validate="focusout", textvariable=var)
                 box.grid(row=row+n, column=1, sticky=tk.W+tk.E)
+                ## Set Value
                 set_lbl = tk.Label(self, text=var.get(), textvariable=lbl_vars[k])
                 set_lbl.grid(row=row+n, column=2, sticky=tk.W+tk.E)
+
                 self.to_remove.append(lbl)
                 self.to_remove.append(box)
                 self.to_remove.append(set_lbl)
@@ -266,7 +263,6 @@ class SetParameterFrame(tk.LabelFrame):
         except:
             print("Sequence parameters have not all been specified.")
         else:
-            pu.init_board()
             _SPF_instance.pls_controller.stop()
             raw_seq.program_seq(pu.actions.Branch(0))
         # Send to client
@@ -276,47 +272,18 @@ class SetParameterFrame(tk.LabelFrame):
             print("Failed to send info to client, message: " + str(e))
 
 
-    @staticmethod
-    def program_pulse_reps(n_reps=None, end_vars=None):
-        if n_reps is None or end_vars is None:
-            raise Exception("Both parameters must be specified.")
-        
-        # Start params: self.params
-        these_params = _SPF_instance.params.copy()
-        print("start:", these_params)
-        print("end:", end_vars)
-        print("Num reps:", n_reps)
-        for key in end_vars:
-            if key not in these_params: continue
-            if end_vars[key] > these_params[key]:
-                try:
-                    print("Making axis for:", key)
-                    axis = np.linspace(these_params[key], end_vars[key], n_reps)
-                except:
-                    print("Unable to create axis for %s" % key)
-                    continue
-                else:
-                    these_params[key] = axis
-                    print(axis)
-
-        print(these_params)
-        type(_SPF_instance).program_a_pulse(_SPF_instance.pulse, these_params)
-        
 
     def program_pulse(self, *args, pulse=None):
-        SetParameterFrame.program_a_pulse(self.pulse, self.params)
+        type(self).program_a_pulse(self.pulse, self.params)
 
     def start_seq(self, *args):
         self.pls_controller.stop() # This is fine to run even if already stopped.
         print("Starting sequence")
-        self.pls_controller.run()
+        PulseManager.start()
 
-    def stop_seq(self, *args, no_ir=False):
+    def stop_seq(self, *args):
         print("Stopping sequence")
-        self.pls_controller.stop()
-        if IR_WHEN_OFF and not no_ir:
-            type(self).program_a_pulse(self.ir_pulse, {})
-            self.start_seq()
+        PulseManager.stop()
 
             
 

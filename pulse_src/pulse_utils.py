@@ -19,7 +19,9 @@ from .spinapi import *
 #         raise e
         
     
-
+LOG_PROG = True
+LOG_FILE = "logs/program_log"
+log_n = 0
 SAFE_MODE = False
 if SAFE_MODE:
     print("SAFE_MODE is enabled, the board will not be programmed.")
@@ -131,7 +133,8 @@ class SequenceProgram(threading.Thread):
             raise Exception("Another thread has the board in programming mode.")
         # else: the board is not currently in programming mode.
 
-    def add_instruction(self, flags:np.int32, inst:Inst, inst_data:np.int32, length:np.float64):
+    def add_instruction(self, flags:np.int32, inst:Inst, inst_data:np.int32, length:np.float64,
+            log=None):
         check_board_init()
         if length < MIN_TIME:
             raise Exception("Instruction too short - must be at least %d nanoseconds." % MIN_TIME)
@@ -152,7 +155,8 @@ class SequenceProgram(threading.Thread):
                 f"length:  {length}\n"
                 "Message: "+str(e))
         self.inst_seq.append(inst)
-        print(f"[{flags:b}]", *inst[1:])
+        if log is not None:
+            log.write(f"[{flags:08b}] inst: {inst[1].value} inst_data: {inst[2].value} dt: {inst[3]} \n")
         # print([type(x) for x in inst])
         if not SAFE_MODE:
             return pb_inst_pbonly(*inst)
@@ -194,6 +198,15 @@ class EmptyController:
 
     def __getattribute__(self, name: str):
         self()
+    
+    def __eq__(self, other):
+        if type(other) != type(self):
+            if other is None:
+                return True
+            else:
+                return False
+        else:
+            return False
 
 class DebugController:
     def __init__(self, name="DebugController"):
@@ -245,6 +258,13 @@ class PulseSequence:
     @property
     def controller(self):
         return self._controller
+    
+    @property
+    def c_params(self):
+        try:
+            return self.params
+        except:
+            return {}
 
     def start(self):
         self._controller.run()
@@ -294,10 +314,9 @@ class RawSequence(PulseSequence):
         `concat` also mapped to the python add magic method, ie:
             >>> A = RawSequence()
             >>> B = RawSequence()
+
             >>> C = A.concat(B)
         is equivalent to:
-            >>> A = RawSequence()
-            >>> B = RawSequence()
             >>> C = A + B
         """
         this_flags = {k:(v.copy() if v else None) for k, v in self.flag_seqs.items()}
@@ -308,26 +327,26 @@ class RawSequence(PulseSequence):
             times = [sum(seq) for seq in this_flags.values() if seq is not None]
             end_time = max(times)
         for key in this_flags:
-            th_seq = this_flags[key]
+            th_seq = this_flags[key] # This_seq
             if th_seq is not None: 
                 th_seq = th_seq.copy()
-            ot_seq = other_flags[key]
+            ot_seq = other_flags[key] # Other_seq
             if ot_seq is not None:
                 ot_seq = ot_seq.copy()
             # None + None
             if th_seq is None and ot_seq is None: continue
-            # None + [num]
+            # None + [...]
             if th_seq is None and ot_seq is not None:
                 new_seq[key] = [end_time, 0] + ot_seq
                 continue
-            if toggle_odd and ot_seq is not None:
+            t_full = sum(th_seq)
+            if toggle_odd:# and ot_seq is not None:
                 if len(th_seq) % 2 != 0:
                     # If prev seq finishes on an ON, add an 
                     # OFF for the rest of the sequence
                     th_seq.append(0)
             if stretch:
                 # Assuming toggle_odd=True, the next term will be an OFF
-                t_full = sum(th_seq)
                 if end_time > t_full:
                     th_seq += [end_time-t_full, 0]
             if ot_seq is None:
@@ -400,35 +419,48 @@ class RawSequence(PulseSequence):
     def program_seq(self, end_action=None):
         """ Program the Pulse Blaster board with the defined sequences.
 
-        `end_action` must be an Action type from `_actions.py`.
+        `end_action` must be an Action type from `_actions.py`, or `None` (default), 
+        which is equivalent to the Branch instrunction.
+
+        Returns 0 on success, or 1 on failure.
         """
+        global log_n
         t_ax, frames = self._merge_sequences()
         pin_sets = [flags_to_number(f) for f in frames]
         # t_lens = (t_ax[1:] - t_ax[:-1])
         t_lens = t_ax
         self._controller.prog_enter()
-
+        if end_action is None:
+            # Assume we just want to end the sequence and loop back
+            end_action = actions.Branch(0)
         err = 0
+        n_insts = 0
+        if LOG_PROG:
+            log = open(f"{LOG_FILE}_{log_n}", "w")
         try:
             # TODO: Loops? Jumps?
             # Add the starting frame
             start = self.controller.add_instruction(
-                pin_sets[0], Inst.CONTINUE, 0, t_lens[0]
+                pin_sets[0], Inst.CONTINUE, 0, t_lens[0], log=log
             )
             refs = [start]
+            n_insts += 1
             # Add the other frames
             for p, dt in zip(pin_sets[1:-1], t_lens[1:-1]):
                 refs.append(
                     self.controller.add_instruction(
-                        p, Inst.CONTINUE, 0, dt
+                        p, Inst.CONTINUE, 0, dt, log=log
                     )
                 )
+                n_insts += 1
             # Add the final frame, which branches back to the beginning
             refs.append(
                 self.controller.add_instruction(
-                    pin_sets[-1], end_action.inst, start, t_lens[-1]
+                    pin_sets[-1], end_action.inst, start, t_lens[-1], log=log
                 )
             )
+            n_insts += 1
+
         except Exception as e:
             err = 1
             raise e
@@ -439,8 +471,12 @@ class RawSequence(PulseSequence):
             if err:
                 print("Aborting programming, exiting programming mode.")
             else:
-                print("Programming completed successfully. Sequence length: %d ns" % self.length_ns)
+                print("Programming completed successfully. Sequence length: %.2f ms / %d instructions" % (self.length_ns / 1e6, n_insts))
             self.controller.prog_exit()
+            if LOG_PROG:
+                log.close()
+                log_n += 1
+            return err
 
     def plot_sequence(self):
         # Get frame flags (ie on/off values for each frame, for each flag)
@@ -513,7 +549,7 @@ def extract_ns(value):
         return value
     else:
         # The +0 isn't needed but it will catch out non-time units being provided
-        return (value / u.ns + 0).value
+        return round(value.to("ns").value)
 
 
 class AbstractSequence(RawSequence):
