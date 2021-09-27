@@ -107,12 +107,25 @@ class StructuredSequence:
     @property
     def params(self):
         params = {k:None for k in self.rep_params}
+        params.update(self.c_params)
+        # for c in self.children:
+        #     try:
+        #         params.update(c.params)
+        #     except AttributeError:
+        #         pass
+        return params
+
+    @property
+    def c_params(self):
+        """ Parameters only of the children. No repetition parameters included."""
+        params = {}
         for c in self.children:
             try:
                 params.update(c.params)
             except AttributeError:
                 pass
         return params
+
 
 
     def eval(self, **kw_params) -> RawSequence:
@@ -149,6 +162,11 @@ class StructuredSequence:
     def set_controller(self, controller):
         for c in self.children:
             c.set_controller(controller)
+
+    def set_param_default(self, **kw_params):
+        for c in self.children:
+            c.set_param_default(**kw_params)
+
 
     def plot_sequence(self, **kw_params):
         seq = self.eval(**kw_params)

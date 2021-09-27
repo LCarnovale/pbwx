@@ -3,18 +3,42 @@ import tkinter as tk
 from src.Boxes import *
 # import pulse_src as pls
 import pulse_src.pulse_utils as pls
-
+import pulse_src.load_pulse as lp
+import src.PulseFrames
+import src.Boxes
+from src.pulse_instance import PulseManager as PM
 PULSE_FOLDER = "pulses"
 IR_WHEN_OFF = True
 IR_ON_PLS = "IR_ON.pls"
+WIDTH = 800
+HEIGHT = 600
+src.PulseFrames.WIDTH = 500
+src.PulseFrames.HEIGHT = HEIGHT
+
+
 class AppFrame(tk.Tk):
     def __init__(self, *args, **kwargs):
+        global PULSE_FOLDER
         super(AppFrame, self).__init__(*args, **kwargs)
         self.title("Pulse manager")
+
+        try:
+            os.listdir(PULSE_FOLDER)
+        except FileNotFoundError:
+            try:
+                PULSE_FOLDER = sys.path[0] + "/./" + PULSE_FOLDER
+                os.listdir(PULSE_FOLDER)
+            except:
+                raise FileNotFoundError("Unable to find pulse folder.")
+
         self.pls_controller = pls.SequenceProgram("Main sequence")
-        self.geometry("800x600")
+        PM.set_controller(self.pls_controller)
+        self.geometry(f"{WIDTH}x{HEIGHT}")
         self.init_ui()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
+        PM.register(self)
+        if IR_WHEN_OFF:
+            self.notify(event=PM.Event.STOP)
     
     def on_close(self):
         SetParameterFrame.kill_threads()
@@ -58,10 +82,29 @@ class AppFrame(tk.Tk):
     def OnQuit(self, e):
         self.Close()
 
+    def notify(self, event=None, data=None):
+        if event == PM.Event.STOP:
+            if IR_WHEN_OFF:
+                # Restart IR sequence
+                print("Restoring Trap-on state")
+                pulse = lp.read_pulse_file(PULSE_FOLDER+"/"+IR_ON_PLS)
+                # Set this as the pulse, don't notify because we don't want
+                # to change anything on the frontend.
+                PM.set_pulse(pulse, notify=False)
+                PM.program(notify=False)
+                PM.start(notify=False)
+        if event == PM.Event.PROGRAM:
+            if data:
+                # Programming failed.
+                self.notify(event=PM.Event.STOP)
 
 def main():
     frame = AppFrame()
     tk.mainloop()
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as e:
+        SetParameterFrame.kill_threads()
+        raise e
