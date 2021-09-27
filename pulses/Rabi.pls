@@ -2,7 +2,7 @@
 excite_t : 3.0us
 green_fall: 10ns
 ir_hold: 1ms
-ir_fall: 10us
+ir_fall: 20us
 tau : 400ns
 !=============
 #   Trig   
