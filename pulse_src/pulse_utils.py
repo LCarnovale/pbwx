@@ -437,17 +437,17 @@ class RawSequence(PulseSequence):
         pin_sets = [flags_to_number(f) for f in frames]
         # t_lens = (t_ax[1:] - t_ax[:-1])
         t_lens = t_ax
-        self._controller.prog_enter()
         if end_action is None:
             # Assume we just want to end the sequence and loop back
             end_action = actions.Branch(0)
-        else:
-            raise Exception("End action is:", end_action, end_action.inst)
+        elif end_action.inst != 6:
+            raise Exception("End action is:", type(end_action), end_action.inst)
         err = 0
         n_insts = 0
         if LOG_PROG:
             log = open(f"{LOG_FILE}_{log_n}", "w")
         try:
+            self._controller.prog_enter()
             # TODO: Loops? Jumps?
             # Add the starting frame
             start = self.controller.add_instruction(
