@@ -230,7 +230,7 @@ class DebugController:
 
 
 class PulseSequence:
-    def __init__(self, controller, loop=0, cycle=False):
+    def __init__(self, controller:SequenceProgram, loop=0, cycle=False):
         """ Create a Pulse Sequence object. 
 
         `controller` must be a SequenceProgram object, to allow communication to the board.

@@ -1,12 +1,14 @@
+import sys
 import tkinter as tk
 
-from src.Boxes import *
+import pulse_src.load_pulse as lp
 # import pulse_src as pls
 import pulse_src.pulse_utils as pls
-import pulse_src.load_pulse as lp
-import src.PulseFrames
 import src.Boxes
+import src.PulseFrames
+from src.Boxes import *
 from src.pulse_instance import PulseManager as PM
+
 PULSE_FOLDER = "pulses"
 IR_WHEN_OFF = True
 IR_ON_PLS = "IR_ON.pls"
@@ -72,10 +74,15 @@ class AppFrame(tk.Tk):
         button_pane.pack(fill=tk.BOTH, expand=False)
         button_pane.grid_columnconfigure(0, weight=1)
         button_pane.grid_columnconfigure(1, weight=1)
-        start_btn = tk.Button(button_pane, text="Start", command=edit_params_bs.start_seq)
+        # button_pane.grid_columnconfigure(2, weight=1)
+        btn_size = {"width":10, "height":5}
+        # prog_start_btn = tk.Button(button_pane, text="Program & Start", command=self.prog_and_start, **btn_size)
+        # prog_start_btn.grid(row=0, column=0)
+        start_btn = tk.Button(button_pane, text="Start", command=edit_params_bs.start_seq, **btn_size)
         start_btn.grid(row=0, column=0)
-        stop_btn = tk.Button(button_pane, text="Stop", command=edit_params_bs.stop_seq)
+        stop_btn = tk.Button(button_pane, text="Stop", command=edit_params_bs.stop_seq, **btn_size)
         stop_btn.grid(row=0, column=1)
+
         vbox_right.add(button_pane, stretch="never")
 
 
@@ -102,7 +109,11 @@ class AppFrame(tk.Tk):
             if data:
                 # Programming failed.
                 self.notify(event=PM.Event.STOP)
-
+    def prog_and_start(self, *args):
+        # Get current pulse
+        PM.stop(notify=False)
+        PM.program(notify=True)
+        PM.start(notify=True)
 def main():
     frame = AppFrame()
     tk.mainloop()

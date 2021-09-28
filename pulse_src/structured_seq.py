@@ -161,6 +161,15 @@ class StructuredSequence:
                 total = total + c
         return total
 
+    def program_seq(self, end_action=None, **kw_params):
+        try:
+            raw_seq = self.eval(**kw_params)
+            err = raw_seq.program_seq(end_action=end_action)
+        except Exception as e:
+            print("Unable to program this sequence, probably not all parameters are specified.")
+            raise e
+        else:
+            return err
     def set_controller(self, controller):
         self.controller = controller
         for c in self.children:

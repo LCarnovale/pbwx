@@ -256,14 +256,22 @@ class SetParameterFrame(tk.LabelFrame):
             
             plot_btn = tk.Button(self, text="Plot", command=self.plot_params)
             plot_btn.grid(row=row+n+1, column=1, sticky=tk.W+tk.E)
-            self.to_remove.append(plot_btn)
             prog_btn = tk.Button(self, text="Program", command=self.program_pulse)
             prog_btn.grid(row=row+n+2, column=1, sticky=tk.W+tk.E)
+            prog_start_btn = tk.Button(self, text="Prog & Start", command=self.prog_and_start)
+            prog_start_btn.grid(row=row+n+3, column=1, sticky=tk.W+tk.E)
+            self.to_remove.append(plot_btn)
             self.to_remove.append(prog_btn)
+            self.to_remove.append(prog_start_btn)
+
 
     def plot_params(self, *args):
         print(self.params)
         self.pulse.plot_sequence(**self.params)
+
+    def prog_and_start(self, *args):
+        self.program_pulse()
+        self.start_seq()
 
     @staticmethod
     def program_a_pulse(pulse, params, *args):
