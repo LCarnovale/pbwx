@@ -87,12 +87,15 @@ class AppFrame(tk.Tk):
             if IR_WHEN_OFF:
                 # Restart IR sequence
                 print("Restoring Trap-on state")
+                original = PM.get_pulse()
                 pulse = lp.read_pulse_file(PULSE_FOLDER+"/"+IR_ON_PLS)
                 # Set this as the pulse, don't notify because we don't want
                 # to change anything on the frontend.
                 PM.set_pulse(pulse, notify=False)
                 PM.program(notify=False)
                 PM.start(notify=False)
+                # Restore original
+                PM.set_pulse(original, notify=False)
         if event == PM.Event.PROGRAM:
             if data:
                 # Programming failed.
@@ -105,6 +108,7 @@ def main():
 if __name__ == '__main__':
     try:
         main()
+        PulseManager.stop()
     except Exception as e:
         SetParameterFrame.kill_threads()
         raise e

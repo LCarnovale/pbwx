@@ -104,14 +104,14 @@ class SocketThread(Thread):
             else:
                 con_alive = True
                 print("Socket thread connected.")
-            if self.do_wait:
+            while self.do_wait:
                 try:
                     self.conn.settimeout(1)
                     data = self.conn.recv(8)
                 except socket.timeout:
                     continue
                 except:
-                    print("Socket receive failed, the other end probably closed.")
+                    print("Connection Closed.")
                     con_alive = False
                     break
                 if len(data) == 0:
@@ -119,13 +119,14 @@ class SocketThread(Thread):
                     break
                 if "START" in str(data):
                     print("Received start request")
-                    _SPF_instance.start_seq()
+                    PulseManager.start()
                 elif "STOP" in str(data):
                     print("Received stop request")
-                    self.stop_wait()
-                    _SPF_instance.stop_seq()
+                    # self.stop_wait()
+                    PulseManager.stop()
                 elif "EXIT" in str(data):
                     print("Received exit request")
+                    PulseManager.stop()
                     self.stop_wait()
                     self.kill()
                     break
@@ -179,6 +180,14 @@ class SetParameterFrame(tk.LabelFrame):
             pulse_obj = PulseManager.get_pulse()
             self.init_param_list(pulse_obj)
             self.pulse = pulse_obj
+        if event == PulseManager.Event.PROGRAM:
+            # Send to client
+            try:
+                pulse = PulseManager.get_pulse()
+                self.sock_thread.send_info(pulse)
+            except Exception as e:
+                print("Failed to send info to client, message: " + str(e))
+
         
     def init_param_list(self, pulse_obj=None):
         for e in self.to_remove:
@@ -265,11 +274,6 @@ class SetParameterFrame(tk.LabelFrame):
         else:
             _SPF_instance.pls_controller.stop()
             raw_seq.program_seq(pu.actions.Branch(0))
-        # Send to client
-        try:
-            _SPF_instance.sock_thread.send_info(raw_seq)
-        except Exception as e:
-            print("Failed to send info to client, message: " + str(e))
 
 
 
