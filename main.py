@@ -91,7 +91,9 @@ class AppFrame(tk.Tk):
                 # Set this as the pulse, don't notify because we don't want
                 # to change anything on the frontend.
                 PM.set_pulse(pulse, notify=False)
-                PM.program(notify=False)
+                err = PM.program(notify=False)
+                if err:
+                    raise Exception("Failed to program IR_ON.pls, program can not continue.")
                 PM.start(notify=False)
         if event == PM.Event.PROGRAM:
             if data:

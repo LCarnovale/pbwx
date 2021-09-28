@@ -21,6 +21,11 @@ from .spinapi import *
     
 LOG_PROG = True
 LOG_FILE = "logs/program_log"
+SHORT_PULSE_F = lambda n_periods : (n_periods << 21)
+LONG_PULSE_BITS = 0b111 << 21 # The top 3 bits control the short pulse feature.
+                              # Equivalent to SHORT_PULSE_F(7)
+
+LONG_PULSE_DURATION = 10 # nanoseconds
 log_n = 0
 SAFE_MODE = False
 if SAFE_MODE:
@@ -141,6 +146,9 @@ class SequenceProgram(threading.Thread):
         if not self.in_prog:
             raise Exception("Must be in programming mode before adding instructions.")
         try:
+            if length > LONG_PULSE_DURATION:
+                # Currently this should always be the case
+                flags |= LONG_PULSE_BITS
             inst = (
                 ctypes.c_int(flags), 
                 ctypes.c_int(inst), 
@@ -156,7 +164,7 @@ class SequenceProgram(threading.Thread):
                 "Message: "+str(e))
         self.inst_seq.append(inst)
         if log is not None:
-            log.write(f"[{flags:08b}] inst: {inst[1].value} inst_data: {inst[2].value} dt: {inst[3]} \n")
+            log.write(f"[{flags:08b}] inst: {inst[1].value} inst_data: {inst[2].value} dt: {int(inst[3])} \n")
         # print([type(x) for x in inst])
         if not SAFE_MODE:
             return pb_inst_pbonly(*inst)
@@ -433,6 +441,8 @@ class RawSequence(PulseSequence):
         if end_action is None:
             # Assume we just want to end the sequence and loop back
             end_action = actions.Branch(0)
+        else:
+            raise Exception("End action is:", end_action, end_action.inst)
         err = 0
         n_insts = 0
         if LOG_PROG:
@@ -602,7 +612,7 @@ class AbstractSequence(RawSequence):
                         # Add the new parameter
                         self.params[x] = None
 
-    def program_seq(self, end_action=actions.CNT, **params):
+    def program_seq(self, end_action=None, **params):
         """ Program the sequence to the board. Provide values
         for parameters as keyword arguments, eg:
 
