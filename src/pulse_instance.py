@@ -46,7 +46,7 @@ class PulseManager:
     def set_pulse(pulse:RawSequence, notify=True):
         """ Set the `pulse` attribute of the PulseManager instance.
         If `notify=True` (default), notify all observers."""
-        if _instance.controller is not None:
+        if _instance.controller is not None and pulse is not None:
             pulse.set_controller(_instance.controller)
         _instance.pulse = pulse
         if notify: 
@@ -68,7 +68,7 @@ class PulseManager:
         
         if `notify=True` (default), then notify all observers with an Event.PROGRAM event.
 
-        if `stopping=True`, then `stop()` will be called first, without notifying. (default False)
+        if `stopping=True` (default `False`), then `stop()` will be called first, without notifying.
         """
         if stopping:
             _instance.stop(notify=False)

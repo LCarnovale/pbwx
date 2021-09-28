@@ -192,16 +192,16 @@ class RepetitionsFrame(ttk.Frame):
         pulse_obj = PulseManager.get_pulse()
         try:
             rep_params = pulse_obj.rep_params
-            print(rep_params)
-
+            # print(rep_params)
             rep_params[0]
         except:
-            print("This sequence does not support repititions.")
-            return
+            raise Exception("This sequence does not support repititions")
+            # print("This sequence does not support repititions.")
+            # return
         else:
             if len(rep_params) > 1:
-                print("Too many outer repetition variables, there can only be 1.")
-                return
+                raise Exception("This sequence has too many outer repetition variables, there can only be 1.")
+                # return
             else:
                 rep_key = rep_params[0]
         start_vars = pulse_obj.params

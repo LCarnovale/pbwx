@@ -1,4 +1,5 @@
-from .pulse_utils import RawSequence, AbstractSequence
+from src.pulse_instance import PulseManager
+from .pulse_utils import RawSequence, AbstractSequence, SequenceProgram
 import re
 
 def parse_complex_structure(children_list, structure):
@@ -21,7 +22,7 @@ def parse_complex_structure(children_list, structure):
 
 
 class StructuredSequence:
-    def __init__(self, *children, structure:str=None):
+    def __init__(self, *children, controller:SequenceProgram=None, structure:str=None):
         """ If `structure` is not speicified, it is assumed to be each child
         one after the other, in the given order. 
         A structure can be specified as a string, such as:
@@ -52,6 +53,7 @@ class StructuredSequence:
         like these are being used, then a call to eval must specify the value of each.
         """
         self.children = children
+        self.controller = controller
         self.parse_structure(structure)
 
     def parse_structure(self, structure):
@@ -160,6 +162,7 @@ class StructuredSequence:
         return total
 
     def set_controller(self, controller):
+        self.controller = controller
         for c in self.children:
             c.set_controller(controller)
 
@@ -171,6 +174,12 @@ class StructuredSequence:
     def plot_sequence(self, **kw_params):
         seq = self.eval(**kw_params)
         seq.plot_sequence()
+
+    def start(self):
+        self.controller.run()
+
+    def stop(self):
+        self.controller.stop()
 
 if __name__ == "__main__":
     A = StructuredSequence(1, 2, 3, structure="0, 1^N, 0^M, 2")
