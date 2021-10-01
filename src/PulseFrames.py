@@ -240,5 +240,6 @@ class RepetitionsFrame(ttk.Frame):
 
     def plot_sequence(self):
         pulse = self.eval_pulse()
+        print(f"Pulse length: {pulse.length_ns/1000} ms / {pulse.inst_count} instructions")
         pulse.plot_sequence()
         

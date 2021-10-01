@@ -78,13 +78,16 @@ class PulseManager:
 
     @staticmethod
     def start(notify=True):
+        print("O-O-O  Sequence RUNNING  O-O-O ")
         _instance.pulse.start()
         if notify:
             _instance.notify(event=PulseManager.Event.START)
 
     @staticmethod
     def stop(notify=True):
-        _instance.pulse.stop()
+        print("|-|-|  Sequence STOPPED  |-|-| ")
+        if _instance.pulse is not None:
+            _instance.pulse.stop()
         if notify:
             _instance.notify(event=PulseManager.Event.STOP)
 
