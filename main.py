@@ -74,14 +74,19 @@ class AppFrame(tk.Tk):
         button_pane.pack(fill=tk.BOTH, expand=False)
         button_pane.grid_columnconfigure(0, weight=1)
         button_pane.grid_columnconfigure(1, weight=1)
-        # button_pane.grid_columnconfigure(2, weight=1)
+        button_pane.grid_columnconfigure(2, weight=1)
+        button_pane.grid_columnconfigure(3, weight=1)
         btn_size = {"width":10, "height":5}
         # prog_start_btn = tk.Button(button_pane, text="Program & Start", command=self.prog_and_start, **btn_size)
         # prog_start_btn.grid(row=0, column=0)
         start_btn = tk.Button(button_pane, text="Start", command=edit_params_bs.start_seq, **btn_size)
-        start_btn.grid(row=0, column=0)
+        start_btn.grid(row=0, column=0, sticky=tk.W+tk.E)
         stop_btn = tk.Button(button_pane, text="Stop", command=edit_params_bs.stop_seq, **btn_size)
-        stop_btn.grid(row=0, column=1)
+        stop_btn.grid(row=0, column=1, sticky=tk.W+tk.E)
+        close_btn = tk.Button(button_pane, text="Disconnect", command=self.close_controller, **btn_size)
+        close_btn.grid(row=0, column=2, sticky=tk.W+tk.E)
+        con_btn = tk.Button(button_pane, text="Reconnect", command=self.open_controller, **btn_size)
+        con_btn.grid(row=0, column=3, sticky=tk.W+tk.E)
 
         vbox_right.add(button_pane, stretch="never")
 
@@ -114,6 +119,15 @@ class AppFrame(tk.Tk):
         PM.stop(notify=False)
         PM.program(notify=True)
         PM.start(notify=True)
+
+    def close_controller(self, *args):
+        print("!! PB Connection closed !!")
+        self.pls_controller.close()
+
+    def open_controller(self, *args):
+        print("** PB Connection opened **")
+        self.pls_controller.init()
+        
 def main():
     frame = AppFrame()
     tk.mainloop()

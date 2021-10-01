@@ -197,6 +197,17 @@ class SequenceProgram(threading.Thread):
         t_ax = np.concatenate([[0], np.cumsum(t_ax)], axis=0)
         vals = np.concatenate([[vals[0]], vals], axis=0)
         return t_ax, vals
+
+    def close(self):
+        """ Calls `pb_close()` from the pulse blaster API. This will end
+        communication with the board, without affecting program execution.
+        ie, if a sequence is currently running, this will not stop it."""
+        SequenceProgram.board_initialised = False
+        pb_stop()
+    
+    def init(self):
+        init_board()
+
 class EmptyController:
     def __init__(self):
         pass
@@ -546,6 +557,10 @@ class RawSequence(PulseSequence):
         lengths = [sum(x) for x in self.flag_seqs.values() if x is not None]
         return max(lengths)
 
+    @property
+    def inst_count(self):
+        t_ax, _ = self._merge_sequences()
+        return len(t_ax)
         
 
 
