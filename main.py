@@ -121,7 +121,6 @@ def main():
 if __name__ == '__main__':
     try:
         main()
-        PulseManager.stop()
     except Exception as e:
         SetParameterFrame.kill_threads()
         raise e
