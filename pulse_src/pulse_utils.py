@@ -54,7 +54,7 @@ def init_board():
     if pb_init() != 0:
         print("Error initializing board: %s" % pb_get_error())
         input("Please press a key to continue.")
-        exit(-1)
+        raise RuntimeError("Board initialisation failed.")
     # Enable log file
     pb_set_debug(0)
     # Select the (only) board
