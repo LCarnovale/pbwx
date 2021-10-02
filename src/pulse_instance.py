@@ -88,6 +88,8 @@ class PulseManager:
         print("|-|-|  Sequence STOPPED  |-|-| ")
         if _instance.pulse is not None:
             _instance.pulse.stop()
+        elif _instance.controller is not None:
+            _instance.controller.stop()
         if notify:
             _instance.notify(event=PulseManager.Event.STOP)
 
