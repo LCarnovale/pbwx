@@ -1,4 +1,5 @@
 import numpy as np
+from src.extras import parse_val
 from src.pulse_instance import PulseManager
 import tkinter as tk
 import tkinter.ttk as ttk
@@ -90,6 +91,10 @@ class RepetitionsFrame(tk.LabelFrame):
         plot_button = tk.Button(rep_options, text="Plot",
             command=self.plot_sequence)
         plot_button.grid(row=3, column=1, sticky=tk.W+tk.E)
+        prog_start_btn = tk.Button(rep_options, text="Prog and Start",
+            command=self.prog_and_start)
+        prog_start_btn.grid(row=4, column=1, sticky=tk.W+tk.E)
+
         reps_lin_radio.grid(row=1, column=1, sticky=tk.W)
         reps_log_radio.grid(row=1, column=2, sticky=tk.W)
         pane.add(param_list, stretch="always", width=WIDTH//2)
@@ -117,7 +122,7 @@ class RepetitionsFrame(tk.LabelFrame):
             tb.grid(row=0, column=0, sticky=tk.W+tk.E)
             self.to_remove = [tb]
         else:
-            self.end_vars = pulse_obj.c_params.copy()
+            self.end_vars = {k:None for k in pulse_obj.c_params.keys()}
             try:
                 rep_params = pulse_obj.rep_params
             except:
@@ -125,7 +130,6 @@ class RepetitionsFrame(tk.LabelFrame):
             param_list = [x for x in self.end_vars.items() if x[0] not in rep_params]
             param_vars = {k+"_reps":tk.StringVar(name=k+"_reps", value="const")
                 for k, v in param_list}
-            # TODO: I don't think lbl_vars is actually needed here?
             start_vars = {k:PulseManager.get_var(k) for k, _ in param_list}
             def _update_param(param_key, params, param_vars):
                 # params, param_vars, lbl_vars = dicts
@@ -134,7 +138,7 @@ class RepetitionsFrame(tk.LabelFrame):
                     if new_value == "":
                         new_value = "const"
                     else:
-                        new_value = float(new_value)
+                        new_value = parse_val(new_value, out_as="ns", rounding=True, out_type=int)
                 except:
                     pass
                 else:
@@ -188,6 +192,10 @@ class RepetitionsFrame(tk.LabelFrame):
         # Restore previous pulse
         PulseManager.set_pulse(original, notify=False)
 
+    def prog_and_start(self, *args):
+        self.program_seq()
+        PulseManager.start()
+
     def eval_pulse(self):
         pulse_obj = PulseManager.get_pulse()
         try:
@@ -212,7 +220,6 @@ class RepetitionsFrame(tk.LabelFrame):
         these_params[rep_key] = n_reps
 
         rep_mode = self.progression_type.get()
-        print(rep_mode)
         print("start:", these_params)
         print("end:", end_vars)
         print("Num reps:", n_reps)
@@ -225,6 +232,7 @@ class RepetitionsFrame(tk.LabelFrame):
         for key in end_vars:
             if key not in these_params: continue
             if end_vars[key] == 0: continue
+            if end_vars[key] is None: continue
             if end_vars[key] != these_params[key]:
                 try:
                     print("Making axis for:", key)

@@ -111,13 +111,13 @@ def send_bytes(bytes):
     establish_client()
     _conn.send(bytes)
 
-def test_server():
-    with PulseCommunicator() as pc:
-        pc.send_info(raw)
+# def test_server():
+#     with PulseCommunicator() as pc:
+#         pc.send_info(raw)
 
-def test_client():
-    mc = MockClient()
-    mc.go()
+# def test_client():
+#     mc = MockClient()
+#     mc.go()
 
 # if __name__ == "__main__":
     # from pulse_src import load_pulse as lp

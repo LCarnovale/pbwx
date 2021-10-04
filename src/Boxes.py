@@ -8,6 +8,7 @@ import numpy as np
 from pulse_src import load_pulse as loader
 from pulse_src import pulse_utils as pu
 from sock import HOST, PORT
+from src.extras import parse_val
 
 from .pulse_instance import PulseManager
 from .PulseFrames import PulseShapeFrame, RepetitionsFrame
@@ -56,8 +57,6 @@ class SelectPulseFrame(tk.LabelFrame):
 
 
 def is_num(x, *args):
-    print("x:", x)
-    print("args:", args)
     try:
         float(x)
     except:
@@ -129,8 +128,8 @@ class SetParameterFrame(tk.LabelFrame):
                 # param_vars, lbl_vars = dicts
                 new_value = param_vars[param_key].get()
                 try:
-                    new_value = float(new_value)
-                except:
+                    new_value = parse_val(new_value, out_as="ns", rounding=True, out_type=int)
+                except Exception as e:
                     pass
                 else:
                     lbl_vars[param_key].set(str(new_value))
@@ -189,7 +188,6 @@ class SetParameterFrame(tk.LabelFrame):
 
 
     def plot_params(self, *args):
-        print(self.params)
         self.pulse.plot_sequence(**self.params)
 
     def prog_and_start(self, *args, stopping=True):
