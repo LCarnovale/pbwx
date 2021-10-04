@@ -1,6 +1,7 @@
 import sys
 import time
 import tkinter as tk
+import tkinter.font as tf
 
 import pulse_src.load_pulse as lp
 # import pulse_src as pls
@@ -14,9 +15,9 @@ from src.pulse_instance import PulseManager as PM
 PULSE_FOLDER = "pulses"
 IR_WHEN_OFF = True
 IR_ON_PLS = "IR_ON.pls"
-WIDTH = 800
+WIDTH = 900
 HEIGHT = 600
-src.PulseFrames.WIDTH = 500
+src.PulseFrames.WIDTH = 600
 src.PulseFrames.HEIGHT = HEIGHT
 
 
@@ -70,8 +71,8 @@ class AppFrame(tk.Tk):
         # Left | Right panes
         vbox_left = tk.PanedWindow(main_panel, relief=tk.RAISED, orient=tk.VERTICAL)
         vbox_right = tk.PanedWindow(main_panel, relief=tk.RAISED, orient=tk.VERTICAL)
-        main_panel.add(vbox_left, stretch="always", width=300)
-        main_panel.add(vbox_right, stretch="always",width=500)
+        main_panel.add(vbox_left, stretch="always", width=WIDTH-src.PulseFrames.WIDTH)
+        main_panel.add(vbox_right, stretch="always",width=src.PulseFrames.WIDTH)
 
         # Pulse select panel
         select_pulse_pane = SelectPulseFrame(vbox_left, PULSE_FOLDER, self.pls_controller, padx=5, pady=5, width=50)
@@ -113,11 +114,14 @@ class AppFrame(tk.Tk):
         lv_chkbox = tk.Checkbutton(button_pane, text="Wait for labview?", variable=self.wait_for_LV)
         lv_chkbox.grid(row=row_n, column=2, sticky=tk.W+tk.E)
         row_n += 1
-        btn_size = {"width":10, "height":5}
-        start_btn = tk.Button(button_pane, text="Start", command=edit_params_bs.start_seq, **btn_size)
+        font = tf.Font(size=24, weight="bold")
+        btn_size = {"width":10, "height":1, "font":font}
+        start_btn = tk.Button(button_pane, text="Start", command=edit_params_bs.start_seq, state=tk.DISABLED, **btn_size)
         start_btn.grid(row=row_n, column=0, sticky=tk.W+tk.E)
-        stop_btn = tk.Button(button_pane, text="Stop", command=edit_params_bs.stop_seq, **btn_size)
+        self.start_btn = start_btn
+        stop_btn = tk.Button(button_pane, text="Stop", command=edit_params_bs.stop_seq, state=tk.DISABLED, **btn_size)
         stop_btn.grid(row=row_n, column=1, sticky=tk.W+tk.E)
+        self.stop_btn = stop_btn
         close_btn = tk.Button(button_pane, text="Disconnect", command=self.close_controller, **btn_size)
         close_btn.grid(row=row_n, column=2, sticky=tk.W+tk.E)
         con_btn = tk.Button(button_pane, text="Reconnect", command=self.open_controller, **btn_size)
@@ -131,6 +135,13 @@ class AppFrame(tk.Tk):
         self.Close()
 
     def notify(self, event=None, data=None):
+        if event == PM.Event.PULSE:
+            if PM.get_pulse() is not None:
+                self.start_btn.config(state=tk.ACTIVE)
+                self.stop_btn.config(state=tk.ACTIVE)
+            else:
+                self.start_btn.config(state=tk.DISABLED)
+                self.stop_btn.config(state=tk.DISABLED)
         if event == PM.Event.START:
             self.pb_running.set(True)
         if event == PM.Event.STOP:
@@ -156,7 +167,6 @@ class AppFrame(tk.Tk):
         if event == PM.Event.PREPROGRAM:
             if self.wait_for_LV.get():
                 self.prog_ready.set(True)
-                time.sleep(0.5) # Let the indicator light up
                 print("Waiting for LV to be ready for data...")
                 # TODO: Move this out of the main thread
                 while not self.sock_thread.con_alive:
@@ -178,8 +188,13 @@ class AppFrame(tk.Tk):
                     self.sock_thread.send_info(pulse)
                 except Exception as e:
                     print("Failed to send info to client, message: " + str(e))
-        if event == PM.Event.START:
-            self.pb_running.set(True)
+        if self.pb_running.get():
+            # self.stop_btn.config(state=tk.ACTIVE)
+            self.start_btn.config(state=tk.DISABLED)
+        else:
+            # self.stop_btn.config(state=tk.DISABLED)
+            self.start_btn.config(state=tk.ACTIVE)
+                    
     def prog_and_start(self, *args):
         # Get current pulse
         PM.stop(notify=False)
@@ -243,7 +258,7 @@ class SocketThread(Thread):
                     self.con_alive = False
                     break
                 if len(data) == 0:
-                    print("Stream ended")
+                    print("Stream ended (received no data)")
                     break
                 if "START" in str(data):
                     print("Received start request")
