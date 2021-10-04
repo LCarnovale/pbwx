@@ -1,4 +1,5 @@
 import threading
+import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -42,6 +43,8 @@ AOM  = (1 << 6) # RF source for AOM
 
 FLAG_ON  = 1
 FLAG_OFF = 0
+
+LOG_FILE = sys.path[0] + '/' + LOG_FILE
 
 def init_board():
     """ Call this before using any other functions in this program. """

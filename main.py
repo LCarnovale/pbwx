@@ -283,3 +283,5 @@ if __name__ == '__main__':
     except Exception as e:
         frame.kill_threads()
         raise e
+    # finally:
+    #     input("Enter to close")
