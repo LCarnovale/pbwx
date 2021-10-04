@@ -66,82 +66,7 @@ def is_num(x, *args):
         return True
 
 _SPF_instance = None
-class SocketThread(Thread):
-    def __init__(self):
-        super(SocketThread, self).__init__(group=None)
-        self.socket = socket.socket()
-        self.socket.bind((HOST, PORT))
-        self.do_wait = True
-        self.send_buffer = None
-        self.conn = None
-        self.killed = False
 
-    def stop_wait(self):
-        self.do_wait = False
-
-    def kill(self):
-        self.socket.close()
-        self.killed = True
-
-    def run(self):
-        # Wait for data to be received
-        self.socket.listen()
-        con_alive = False
-        print("Socket thread waiting for connection.")
-        while True:
-            if self.killed:
-                break
-            try:
-                if not con_alive:
-                    self.socket.settimeout(1)
-                    self.conn, addr = self.socket.accept()
-            except socket.timeout:
-                continue
-            except:
-                print("Socket died. Ending socket thread.")
-                self.kill()
-                break
-            else:
-                con_alive = True
-                print("Socket thread connected.")
-            while self.do_wait:
-                try:
-                    self.conn.settimeout(1)
-                    data = self.conn.recv(8)
-                except socket.timeout:
-                    continue
-                except:
-                    print("Connection Closed.")
-                    con_alive = False
-                    break
-                if len(data) == 0:
-                    print("Stream ended")
-                    break
-                if "START" in str(data):
-                    print("Received start request")
-                    PulseManager.start()
-                elif "STOP" in str(data):
-                    print("Received stop request")
-                    # self.stop_wait()
-                    PulseManager.stop()
-                elif "EXIT" in str(data):
-                    print("Received exit request")
-                    PulseManager.stop()
-                    self.stop_wait()
-                    self.kill()
-                    break
-                else:
-                    print("Received unknown message: %s" % str(data))
-
-            
-    def send_info(self, raw_seq, byte_order="big"):
-        # Send pulse length:
-        if self.conn:
-            length = raw_seq.length_ns
-            length = int(length).to_bytes(16, byte_order)
-            self.conn.send(length)
-        else:
-            print("No connection to send data on yet")
 
 class SetParameterFrame(tk.LabelFrame):
     _instance = None
@@ -158,15 +83,13 @@ class SetParameterFrame(tk.LabelFrame):
         _SPF_instance = self
         # Open and make socket
         # self.pc = PulseCommunicator()
-        self.sock_thread = SocketThread()
-        self.sock_thread.start()
 
-    def __del__(self):
-        self.kill_threads()
+    # def __del__(self):
+        # self.kill_threads()
 
-    @staticmethod
-    def kill_threads(*args):
-        _SPF_instance.sock_thread.kill()
+    # @staticmethod
+    # def kill_threads(*args):
+    #     _SPF_instance.sock_thread.kill()
         
 
     def init_UI(self):
@@ -180,13 +103,13 @@ class SetParameterFrame(tk.LabelFrame):
             pulse_obj = PulseManager.get_pulse()
             self.init_param_list(pulse_obj)
             self.pulse = pulse_obj
-        if event == PulseManager.Event.PROGRAM:
-            # Send to client
-            try:
-                pulse = PulseManager.get_pulse()
-                self.sock_thread.send_info(pulse)
-            except Exception as e:
-                print("Failed to send info to client, message: " + str(e))
+        # if event == PulseManager.Event.PROGRAM:
+        #     # Send to client
+        #     try:
+        #         pulse = PulseManager.get_pulse()
+        #         self.sock_thread.send_info(pulse)
+        #     except Exception as e:
+        #         print("Failed to send info to client, message: " + str(e))
 
         
     def init_param_list(self, pulse_obj=None):
@@ -269,27 +192,33 @@ class SetParameterFrame(tk.LabelFrame):
         print(self.params)
         self.pulse.plot_sequence(**self.params)
 
-    def prog_and_start(self, *args):
+    def prog_and_start(self, *args, stopping=True):
         self.program_pulse()
         self.start_seq()
 
-    @staticmethod
-    def program_a_pulse(pulse, params, *args):
-        try:
-            raw_seq = pulse.eval(**params)
-        except:
-            print("Sequence parameters have not all been specified.")
-        else:
-            _SPF_instance.pls_controller.stop()
-            raw_seq.program_seq(pu.actions.Branch(0))
+    # @staticmethod
+    # def program_a_pulse(pulse, params, *args, stopping=False):
+    #     try:
+    #         raw_seq = pulse.eval(**params)
+    #     except:
+    #         print("Sequence parameters have not all been specified.")
+    #     else:
+    #         PulseManager.set_pulse(raw_seq, notify=False)
+    #         PulseManager.program(stopping=stopping)
 
 
 
-    def program_pulse(self, *args, pulse=None):
-        type(self).program_a_pulse(self.pulse, self.params)
+    def program_pulse(self, *args, pulse=None, stopping=False):
+        original = PulseManager.get_pulse()
+        if pulse is None:
+            pulse = self.pulse
+        raw_pulse = pulse.eval(**self.params)
+        PulseManager.set_pulse(raw_pulse, notify=False)
+        PulseManager.program(stopping=True)
+        PulseManager.set_pulse(original, notify=False) 
 
     def start_seq(self, *args):
-        self.pls_controller.stop() # This is fine to run even if already stopped.
+        # self.pls_controller.stop() # This is fine to run even if already stopped.
         print("Starting sequence")
         PulseManager.start()
 
@@ -308,9 +237,9 @@ class PulseToolsBox(tk.LabelFrame):
         self.init_UI()
 
     def init_UI(self):
-        tabs = ttk.Notebook(self)
-        pulse_shape_tab = PulseShapeFrame(tabs)
-        repetitions_tab = RepetitionsFrame(tabs)
-        tabs.add(pulse_shape_tab, text="Pulse Shape")
-        tabs.add(repetitions_tab, text="Repetitions")
-        tabs.pack(fill=tk.BOTH, expand=True)
+        # tabs = ttk.Notebook(self)
+        # pulse_shape_tab = PulseShapeFrame(tabs)
+        repetitions_tab = RepetitionsFrame(self, text="Repetitions")
+        # tabs.add(pulse_shape_tab, text="Pulse Shape")
+        # tabs.add(repetitions_tab, text="Repetitions")
+        repetitions_tab.pack(fill=tk.BOTH, expand=True)

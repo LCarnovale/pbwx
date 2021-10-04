@@ -119,9 +119,9 @@ def test_client():
     mc = MockClient()
     mc.go()
 
-if __name__ == "__main__":
-    from pulse_src import load_pulse as lp
+# if __name__ == "__main__":
+    # from pulse_src import load_pulse as lp
 
-    rp = lp.read_pulse_file("pulses/test.pls")
-    raw = rp.eval(N=2)
+    # rp = lp.read_pulse_file("pulses/test.pls")
+    # raw = rp.eval(N=2)
     # Use either test_client or test_server
