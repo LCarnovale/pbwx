@@ -42,7 +42,7 @@ class PulseShapeFrame(ttk.Frame):
 
         
 _RF_instance = None
-class RepetitionsFrame(ttk.Frame):
+class RepetitionsFrame(tk.LabelFrame):
     def __init__(self, parent, **kwargs):
         global _RF_instance
         super(RepetitionsFrame, self).__init__(parent, **kwargs)

@@ -7,7 +7,7 @@ _instance = None
 class PulseManager:
     Event = Enum(
         value="Event",
-        names="PULSE CONTROLLER START STOP PROGRAM"   # New pulse, controller
+        names="PULSE CONTROLLER START STOP PROGRAM PREPROGRAM"   # New pulse, controller
     )
     def __init__(self, pulse:RawSequence=None, controller:SequenceProgram=None):
         global _instance
@@ -66,10 +66,14 @@ class PulseManager:
     def program(*args, notify=True, stopping=False, **kwargs):
         """ Call `program_seq(*args, **kwargs)` on the attached pulse object.
         
-        if `notify=True` (default), then notify all observers with an Event.PROGRAM event.
+        if `notify=True` (default), then notify all observers, first with an
+        EVENT.PREPROGRAM event before programming, and then with an Event.PROGRAM event
+        after programming, with `data` being set to the return value of the program call.
 
         if `stopping=True` (default `False`), then `stop()` will be called first, without notifying.
         """
+        if notify:
+            _instance.notify(event=PulseManager.Event.PREPROGRAM)
         if stopping:
             _instance.stop(notify=False)
         ret = _instance.pulse.program_seq(*args, **kwargs)

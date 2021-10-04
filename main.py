@@ -1,4 +1,5 @@
 import sys
+import time
 import tkinter as tk
 
 import pulse_src.load_pulse as lp
@@ -7,6 +8,7 @@ import pulse_src.pulse_utils as pls
 import src.Boxes
 import src.PulseFrames
 from src.Boxes import *
+from src.led_indicator import IndicatorLED
 from src.pulse_instance import PulseManager as PM
 
 PULSE_FOLDER = "pulses"
@@ -36,14 +38,27 @@ class AppFrame(tk.Tk):
         self.pls_controller = pls.SequenceProgram("Main sequence")
         PM.set_controller(self.pls_controller)
         self.geometry(f"{WIDTH}x{HEIGHT}")
-        self.init_ui()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
+
+        self.trap_state = tk.BooleanVar(self, False) # Is the trapping laser on?
+        self.pb_running = tk.BooleanVar(self, False)   # Is the pulse blaster running?
+        self.prog_ready = tk.BooleanVar(self, False) # Program ready and waiting for labview to accept.
+        self.ir_when_off = tk.BooleanVar(self, IR_WHEN_OFF) # Run IR_ON.pls during downtime? 
+        self.wait_for_LV = tk.BooleanVar(self, True) # Wait for labview to accept programs?
+
+        self.sock_thread = SocketThread()
+        self.sock_thread.start()
+
+        self.init_ui()
         PM.register(self)
         if IR_WHEN_OFF:
             self.notify(event=PM.Event.STOP)
     
+    def kill_threads(self):
+        self.sock_thread.kill()
+    
     def on_close(self):
-        SetParameterFrame.kill_threads()
+        self.kill_threads()
         print("Goodbye")
         self.destroy()
 
@@ -76,17 +91,38 @@ class AppFrame(tk.Tk):
         button_pane.grid_columnconfigure(1, weight=1)
         button_pane.grid_columnconfigure(2, weight=1)
         button_pane.grid_columnconfigure(3, weight=1)
-        btn_size = {"width":10, "height":5}
         # prog_start_btn = tk.Button(button_pane, text="Program & Start", command=self.prog_and_start, **btn_size)
         # prog_start_btn.grid(row=0, column=0)
+        variables = [self.trap_state, self.pb_running, self.prog_ready]
+        var_lbls = ["Trap on", "PB Running", "Program ready"]
+        row_n = 0
+        n = 0
+        n_cols = 4
+        for var, lbl in zip(variables, var_lbls):
+            indicator = IndicatorLED(button_pane, lbl, var, width=120)
+            indicator.grid(row=row_n, column=n % n_cols, sticky=tk.W+tk.E)
+            n += 1
+            if n % n_cols == 0:
+                row_n += 1
+        row_n += 1
+
+        # Add ir-when-off checkbox
+        ir_chkbox = tk.Checkbutton(button_pane, text="IR when off?", variable=self.ir_when_off)
+        ir_chkbox.grid(row=row_n, column=1, sticky=tk.W+tk.E) # Place above STOP button
+        # Add wait for labview checkbox
+        lv_chkbox = tk.Checkbutton(button_pane, text="Wait for labview?", variable=self.wait_for_LV)
+        lv_chkbox.grid(row=row_n, column=2, sticky=tk.W+tk.E)
+        row_n += 1
+        btn_size = {"width":10, "height":5}
         start_btn = tk.Button(button_pane, text="Start", command=edit_params_bs.start_seq, **btn_size)
-        start_btn.grid(row=0, column=0, sticky=tk.W+tk.E)
+        start_btn.grid(row=row_n, column=0, sticky=tk.W+tk.E)
         stop_btn = tk.Button(button_pane, text="Stop", command=edit_params_bs.stop_seq, **btn_size)
-        stop_btn.grid(row=0, column=1, sticky=tk.W+tk.E)
+        stop_btn.grid(row=row_n, column=1, sticky=tk.W+tk.E)
         close_btn = tk.Button(button_pane, text="Disconnect", command=self.close_controller, **btn_size)
-        close_btn.grid(row=0, column=2, sticky=tk.W+tk.E)
+        close_btn.grid(row=row_n, column=2, sticky=tk.W+tk.E)
         con_btn = tk.Button(button_pane, text="Reconnect", command=self.open_controller, **btn_size)
-        con_btn.grid(row=0, column=3, sticky=tk.W+tk.E)
+        con_btn.config(state="disabled")
+        con_btn.grid(row=row_n, column=3, sticky=tk.W+tk.E)
 
         vbox_right.add(button_pane, stretch="never")
 
@@ -95,8 +131,13 @@ class AppFrame(tk.Tk):
         self.Close()
 
     def notify(self, event=None, data=None):
+        if event == PM.Event.START:
+            self.pb_running.set(True)
         if event == PM.Event.STOP:
-            if IR_WHEN_OFF:
+            self.trap_state.set(False)
+            self.pb_running.set(False)
+
+            if self.ir_when_off.get():
                 # Restart IR sequence
                 print("Restoring Trap-on state")
                 original = PM.get_pulse()
@@ -108,12 +149,37 @@ class AppFrame(tk.Tk):
                 if err:
                     raise Exception("Failed to program IR_ON.pls, program can not continue.")
                 PM.start(notify=False)
+                self.pb_running.set(True)
+                self.trap_state.set(True)
                 # Restore original
                 PM.set_pulse(original, notify=False)
+        if event == PM.Event.PREPROGRAM:
+            if self.wait_for_LV.get():
+                self.prog_ready.set(True)
+                time.sleep(0.5) # Let the indicator light up
+                print("Waiting for LV to be ready for data...")
+                # TODO: Move this out of the main thread
+                while not self.sock_thread.con_alive:
+                    continue
+                print("LV detected.")
+
         if event == PM.Event.PROGRAM:
+            # The trap will probably not be on now.
+            self.trap_state.set(False)
+            self.prog_ready.set(False)
+            self.pb_running.set(False)
             if data:
                 # Programming failed.
                 self.notify(event=PM.Event.STOP)
+            else:
+                # Send to client
+                try:
+                    pulse = PulseManager.get_pulse()
+                    self.sock_thread.send_info(pulse)
+                except Exception as e:
+                    print("Failed to send info to client, message: " + str(e))
+        if event == PM.Event.START:
+            self.pb_running.set(True)
     def prog_and_start(self, *args):
         # Get current pulse
         PM.stop(notify=False)
@@ -128,7 +194,86 @@ class AppFrame(tk.Tk):
         print("** PB Connection opened **")
         self.pls_controller.init()
         
+class SocketThread(Thread):
+    def __init__(self):
+        super(SocketThread, self).__init__(group=None)
+        self.socket = socket.socket()
+        self.socket.bind((HOST, PORT))
+        self.do_wait = True
+        self.send_buffer = None
+        self.conn = None
+        self.killed = False
+
+    def stop_wait(self):
+        self.do_wait = False
+
+    def kill(self):
+        self.socket.close()
+        self.killed = True
+
+    def run(self):
+        # Wait for data to be received
+        self.socket.listen()
+        self.con_alive = False
+        print("Socket thread waiting for connection.")
+        while True:
+            if self.killed:
+                break
+            try:
+                if not self.con_alive:
+                    self.socket.settimeout(1)
+                    self.conn, addr = self.socket.accept()
+            except socket.timeout:
+                continue
+            except:
+                print("Socket died. Ending socket thread.")
+                self.kill()
+                break
+            else:
+                self.con_alive = True
+                print("Socket thread connected.")
+            while self.do_wait:
+                try:
+                    self.conn.settimeout(1)
+                    data = self.conn.recv(8)
+                except socket.timeout:
+                    continue
+                except:
+                    print("Connection Closed.")
+                    self.con_alive = False
+                    break
+                if len(data) == 0:
+                    print("Stream ended")
+                    break
+                if "START" in str(data):
+                    print("Received start request")
+                    PulseManager.start()
+                elif "STOP" in str(data):
+                    print("Received stop request")
+                    # self.stop_wait()
+                    PulseManager.stop()
+                elif "EXIT" in str(data):
+                    print("Received exit request")
+                    # PulseManager.stop()
+                    self.stop_wait()
+                    self.kill()
+                    break
+                else:
+                    print("Received unknown message: %s" % str(data))
+
+            
+    def send_info(self, raw_seq, byte_order="big"):
+        # Send pulse length:
+        if self.conn:
+            length = raw_seq.length_ns
+            length = int(length).to_bytes(16, byte_order)
+            self.conn.send(length)
+        else:
+            print("No connection to send data on yet")
+
+frame = None
 def main():
+    global frame
     frame = AppFrame()
     tk.mainloop()
 
@@ -136,5 +281,5 @@ if __name__ == '__main__':
     try:
         main()
     except Exception as e:
-        SetParameterFrame.kill_threads()
+        frame.kill_threads()
         raise e
