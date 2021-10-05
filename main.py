@@ -46,8 +46,9 @@ class AppFrame(tk.Tk):
         self.prog_ready = tk.BooleanVar(self, False) # Program ready and waiting for labview to accept.
         self.ir_when_off = tk.BooleanVar(self, IR_WHEN_OFF) # Run IR_ON.pls during downtime? 
         self.wait_for_LV = tk.BooleanVar(self, True) # Wait for labview to accept programs?
+        self.LV_connected = tk.BooleanVar(self, False)
 
-        self.sock_thread = SocketThread()
+        self.sock_thread = SocketThread(self.LV_connected)
         self.sock_thread.start()
 
         self.init_ui()
@@ -94,8 +95,12 @@ class AppFrame(tk.Tk):
         button_pane.grid_columnconfigure(3, weight=1)
         # prog_start_btn = tk.Button(button_pane, text="Program & Start", command=self.prog_and_start, **btn_size)
         # prog_start_btn.grid(row=0, column=0)
-        variables = [self.trap_state, self.pb_running, self.prog_ready]
-        var_lbls = ["Trap on", "PB Running", "Program ready"]
+        variables = [
+            self.trap_state, self.pb_running, self.prog_ready, self.LV_connected
+        ]
+        var_lbls = [
+            "Trap on", "PB Running", "Program ready", "LV connected"
+        ]
         row_n = 0
         n = 0
         n_cols = 4
@@ -212,14 +217,26 @@ class AppFrame(tk.Tk):
         self.pls_controller.init()
         
 class SocketThread(Thread):
-    def __init__(self):
+    def __init__(self, connected_var:tk.Variable=None):
         super(SocketThread, self).__init__(group=None)
         self.socket = socket.socket()
         self.socket.bind((HOST, PORT))
         self.do_wait = True
         self.send_buffer = None
         self.conn = None
+        self.connected_var = connected_var
         self.killed = False
+        self._con_alive = False
+
+    @property
+    def con_alive(self):
+        return self._con_alive
+    
+    @con_alive.setter
+    def con_alive(self, value:bool):
+        self._con_alive = value
+        if self.connected_var is not None:
+            self.connected_var.set(value)
 
     def stop_wait(self):
         self.do_wait = False
@@ -232,6 +249,7 @@ class SocketThread(Thread):
         # Wait for data to be received
         self.socket.listen()
         self.con_alive = False
+        
         print("Socket thread waiting for connection.")
         while True:
             if self.killed:
@@ -261,6 +279,7 @@ class SocketThread(Thread):
                     break
                 if len(data) == 0:
                     print("Stream ended (received no data)")
+                    self.con_alive = False
                     break
                 if "START" in str(data):
                     print("Received start request")
@@ -274,6 +293,7 @@ class SocketThread(Thread):
                     # PulseManager.stop()
                     self.stop_wait()
                     self.kill()
+                    self.con_alive = False
                     break
                 else:
                     print("Received unknown message: %s" % str(data))
