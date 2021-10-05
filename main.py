@@ -101,6 +101,8 @@ class AppFrame(tk.Tk):
         n_cols = 4
         for var, lbl in zip(variables, var_lbls):
             indicator = IndicatorLED(button_pane, lbl, var, width=120)
+            if var == self.prog_ready:
+                indicator.mapping.update({True:"red"})
             indicator.grid(row=row_n, column=n % n_cols, sticky=tk.W+tk.E)
             n += 1
             if n % n_cols == 0:

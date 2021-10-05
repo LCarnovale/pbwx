@@ -62,3 +62,4 @@ class IndicatorLED(tk.PanedWindow):
         if self.canvas is None:
             raise Exception("Canvas has not been initialized yet.")
         self.canvas.itemconfig(self._oval, fill=fill)
+        self.canvas.update()
