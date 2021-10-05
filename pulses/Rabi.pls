@@ -2,8 +2,8 @@
 excite_t : 3000ns
 green_fall: 340ns
 ir_hold: 0.2ms
-ir_fall: 20us
-tau : 400ns
+ir_fall: 30us
+tau : 11ns
 pol_time : 3us
 !=============
 #    0                             1                              2                      3
