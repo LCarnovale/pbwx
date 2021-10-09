@@ -1,8 +1,6 @@
 from enum import Enum
 from pulse_src.pulse_utils import RawSequence, SequenceProgram, init_board
 
-
-
 _instance = None
 class PulseManager:
     Event = Enum(
@@ -84,6 +82,12 @@ class PulseManager:
     def start(notify=True):
         print("O-O-O  Sequence RUNNING  O-O-O ")
         _instance.pulse.start()
+        # try:
+            # _instance.pulse.start()
+        # except Exception as e:
+            # main.indicate_error()
+            # raise e
+
         if notify:
             _instance.notify(event=PulseManager.Event.START)
 

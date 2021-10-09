@@ -44,9 +44,10 @@ class PulseShapeFrame(ttk.Frame):
         
 _RF_instance = None
 class RepetitionsFrame(tk.LabelFrame):
-    def __init__(self, parent, **kwargs):
+    def __init__(self, main_app, parent, **kwargs):
         global _RF_instance
         super(RepetitionsFrame, self).__init__(parent, **kwargs)
+        self.main = main_app
         self.to_remove = []
         self.reps_num = tk.StringVar(self, "1")
         self.progression_type = tk.StringVar(self, "LIN") # LIN or LOG
@@ -187,14 +188,22 @@ class RepetitionsFrame(tk.LabelFrame):
         #     n_reps=int(self.reps_num.get()), 
         original = PulseManager.get_pulse()
         pulse = self.eval_pulse()
-        PulseManager.set_pulse(pulse, notify=False)
-        PulseManager.program(stopping=True)
-        # Restore previous pulse
-        PulseManager.set_pulse(original, notify=False)
+        try:
+            PulseManager.set_pulse(pulse, notify=False)
+            PulseManager.program(stopping=True)
+            # Restore previous pulse
+            PulseManager.set_pulse(original, notify=False)
+        except Exception as e:
+            self.main.indicate_error()
+            raise e
 
     def prog_and_start(self, *args):
         self.program_seq()
-        PulseManager.start()
+        try:
+            PulseManager.start()
+        except Exception as e:
+            self.main.indicate_error()
+            raise e
 
     def eval_pulse(self):
         pulse_obj = PulseManager.get_pulse()
