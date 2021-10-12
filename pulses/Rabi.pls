@@ -1,6 +1,6 @@
 === Params ===
 excite_t : 3000ns
-green_fall: 340ns
+green_fall: 460ns
 ir_hold: 0.2ms
 ir_fall: 50us
 tau : 20ns
@@ -13,5 +13,5 @@ pol_time : 15us
 2:                   |                              | excite_t ir_hold ir_fall |                           |     # IR
 4:                   | excite_t+green_fall tau 30   |                          |                           |     # MW-X
 !=== Structure
-2, 3, 1^12, 0, 1^N, 4
+2, 3, 1^0, 0, 1^N, 4
 !=== Comments
