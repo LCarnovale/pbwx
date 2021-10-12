@@ -264,6 +264,7 @@ class PulseSequence:
         self.loop = loop
         self.cycle = cycle             
         self._sequence = []            # Sequence of pulse objects
+        self.bit_names = {}
 
     def set_controller(self, controller):
         self._controller = controller

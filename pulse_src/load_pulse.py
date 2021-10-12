@@ -2,6 +2,7 @@ from os import read
 from .structured_seq import parse_complex_structure
 import numpy as np
 from astropy import units as u
+import re
 
 from . import pulse_utils as pu
 from . import _actions as actions
@@ -63,6 +64,17 @@ def read_pulse_file(filename):
             break
         # After this point we know we are in the sequence part of the file
         bit, seq = line.split(":")
+        if "(" in bit and ")" in bit:
+            try:
+                bit, bit_name = re.split("\((.*)\)", bit)[:2]
+            except Exception as e:
+                print("Unable to read bit name of bit %s" % bit)
+                print("Can't continue, actual bit value can not be determined.")
+                raise e
+            else:
+                print("Read bit name of bit %s as %s" % (bit, bit_name))
+        else:
+            bit_name = None
         bit = int(bit)
         seq = seq.replace(",", " ")
         seq = seq.replace("+", " 0 ")
@@ -103,6 +115,8 @@ def read_pulse_file(filename):
             pulses.append(new_pulse)
         for seq, pulse in zip(seq_all, pulses):
             pulse.add_seq([bit], [seq])
+            if bit_name is not None:
+                pulse.bit_names[bit] = bit_name
     if len(pulses) == 1:
         return pulse
     else:
