@@ -68,7 +68,7 @@ class StructuredSequence:
         set a fixed number of repetitions. Note that when parameters
         like these are being used, then a call to eval must specify the value of each.
         """
-        self.rep_params = []
+        self._rep_params = set()
         if structure is None:
             self._struct_order = list(range(len(self.children)))
             self._reps = [1 for _ in self.children]
@@ -86,7 +86,7 @@ class StructuredSequence:
                     reps = int(reps)
                 except:
                     # Add the new parameter
-                    self.rep_params.append(reps)
+                    self._rep_params.add(reps)
             else:
                 idx = int(t)
                 reps = 1
@@ -97,6 +97,10 @@ class StructuredSequence:
             self._reps.append(reps)
             self._struct_order.append(idx)
         self._structure = structure
+
+    @property
+    def rep_params(self):
+        return list(self._rep_params)
 
     @property
     def structure(self):
