@@ -20,10 +20,11 @@ HEIGHT = 600
 src.PulseFrames.WIDTH = 600
 src.PulseFrames.HEIGHT = HEIGHT
 
-
+_app_instance = None
 class AppFrame(tk.Tk):
     def __init__(self, *args, **kwargs):
         global PULSE_FOLDER
+        global _app_instance
         super(AppFrame, self).__init__(*args, **kwargs)
         self.title("Pulse manager")
 
@@ -47,6 +48,7 @@ class AppFrame(tk.Tk):
         self.ir_when_off = tk.BooleanVar(self, IR_WHEN_OFF) # Run IR_ON.pls during downtime? 
         self.wait_for_LV = tk.BooleanVar(self, True) # Wait for labview to accept programs?
         self.LV_connected = tk.BooleanVar(self, False)
+        self.err_light = tk.BooleanVar(self, False)
 
         self.sock_thread = SocketThread(self.LV_connected)
         self.sock_thread.start()
@@ -55,6 +57,8 @@ class AppFrame(tk.Tk):
         PM.register(self)
         if IR_WHEN_OFF:
             self.notify(event=PM.Event.STOP)
+
+        _app_instance = self
     
     def kill_threads(self):
         self.sock_thread.kill()
@@ -76,13 +80,13 @@ class AppFrame(tk.Tk):
         main_panel.add(vbox_right, stretch="always",width=src.PulseFrames.WIDTH)
 
         # Pulse select panel
-        select_pulse_pane = SelectPulseFrame(vbox_left, PULSE_FOLDER, self.pls_controller, padx=5, pady=5, width=50)
+        select_pulse_pane = SelectPulseFrame(self, vbox_left, PULSE_FOLDER, self.pls_controller, padx=5, pady=5, width=50)
         select_pulse_pane.pack(fill=tk.BOTH)
         vbox_left.add(select_pulse_pane)
         # Parameter panel
-        edit_params_bs = SetParameterFrame(vbox_left, self.pls_controller)
+        edit_params_bs = SetParameterFrame(self, vbox_left, self.pls_controller)
         # Pulse tools panel
-        pulse_tools_bs = PulseToolsBox(vbox_right)
+        pulse_tools_bs = PulseToolsBox(self, vbox_right)
 
         vbox_left.add(edit_params_bs, stretch="always")
         vbox_right.add(pulse_tools_bs, stretch="always")
@@ -102,12 +106,21 @@ class AppFrame(tk.Tk):
             "Trap on", "PB Running", "Program ready", "LV connected"
         ]
         row_n = 0
+        # Error indicator
+        err_ind = IndicatorLED(button_pane, "Error", self.err_light, width=120)
+        err_ind.mapping.update({True:"red"})
+        err_ind.grid(row=row_n, column=0, sticky=tk.W+tk.E)
+        clear_err_f = lambda *args : self.err_light.set(False)
+        # Error clear button
+        err_clear_btn = tk.Button(button_pane, text="Clear", command=clear_err_f)
+        err_clear_btn.grid(row=row_n, column=1, sticky=tk.W)
+        row_n += 1
         n = 0
         n_cols = 4
         for var, lbl in zip(variables, var_lbls):
             indicator = IndicatorLED(button_pane, lbl, var, width=120)
             if var == self.prog_ready:
-                indicator.mapping.update({True:"red"})
+                indicator.mapping.update({True:"orange"})
             indicator.grid(row=row_n, column=n % n_cols, sticky=tk.W+tk.E)
             n += 1
             if n % n_cols == 0:
@@ -126,7 +139,7 @@ class AppFrame(tk.Tk):
         start_btn = tk.Button(button_pane, text="Start", command=edit_params_bs.start_seq, state=tk.DISABLED, **btn_size)
         start_btn.grid(row=row_n, column=0, sticky=tk.W+tk.E)
         self.start_btn = start_btn
-        stop_btn = tk.Button(button_pane, text="Stop", command=edit_params_bs.stop_seq, state=tk.DISABLED, **btn_size)
+        stop_btn = tk.Button(button_pane, text="Stop", command=edit_params_bs.stop_seq, state=tk.ACTIVE, **btn_size)
         stop_btn.grid(row=row_n, column=1, sticky=tk.W+tk.E)
         self.stop_btn = stop_btn
         close_btn = tk.Button(button_pane, text="Disconnect", command=self.close_controller, **btn_size)
@@ -137,6 +150,9 @@ class AppFrame(tk.Tk):
 
         vbox_right.add(button_pane, stretch="never")
 
+    def indicate_error(self):
+        " Light up front panel error light " 
+        self.err_light.set(True)
 
     def OnQuit(self, e):
         self.Close()
@@ -188,12 +204,14 @@ class AppFrame(tk.Tk):
             if data:
                 # Programming failed.
                 self.notify(event=PM.Event.STOP)
+                self.err_light.set(True)
             else:
                 # Send to client
                 try:
                     pulse = PulseManager.get_pulse()
                     self.sock_thread.send_info(pulse)
                 except Exception as e:
+                    self.err_light.set(True)
                     print("Failed to send info to client, message: " + str(e))
         if self.pb_running.get():
             # self.stop_btn.config(state=tk.ACTIVE)
@@ -209,6 +227,7 @@ class AppFrame(tk.Tk):
         PM.start(notify=True)
 
     def close_controller(self, *args):
+        self.err_light.set(True)
         print("!! PB Connection closed !!")
         self.pls_controller.close()
 

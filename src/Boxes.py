@@ -15,13 +15,14 @@ from .PulseFrames import PulseShapeFrame, RepetitionsFrame
 
 _SelPF_instance = None
 class SelectPulseFrame(tk.LabelFrame):
-    def __init__(self, parent, root_folder, controller, *args, **kwargs):
+    def __init__(self, main_app, parent, root_folder, controller, *args, **kwargs):
         """ Provide a parent object and a path in `root_folder` 
         for the folder to look for `.pls` files
         """
         global _SelPF_instance
         super(SelectPulseFrame, self).__init__(parent, *args, text='Select Pulse Sequence', **kwargs)
         self.root_folder = root_folder
+        self.main = main_app
         self.parent = parent
         self.selected_file = tk.StringVar(self)
         self.selected_file.trace_add("write", self.load_pulse)
@@ -48,6 +49,7 @@ class SelectPulseFrame(tk.LabelFrame):
                 self.pulse = loader.read_pulse_file(path)
                 self.pulse.set_controller(self.pls_controller)
         except Exception as e:
+            self.main.indicate_error()
             print("Error loading pulse file %s" % path)
             print("Error: %s" % e)
         else:
@@ -69,11 +71,12 @@ _SPF_instance = None
 
 class SetParameterFrame(tk.LabelFrame):
     _instance = None
-    def __init__(self, parent, pls_controller, *args, **kwargs):
+    def __init__(self, main, parent, pls_controller, *args, **kwargs):
         global _SPF_instance
         super(SetParameterFrame, self).__init__(parent, *args, text="Parameter Controls", **kwargs)
         PulseManager.register(self)
         self.pls_controller = pls_controller
+        self.main = main
         self.parent = parent
         self.to_remove = [] # UI elements to remove when switching pulses
         self.params = {}
@@ -211,25 +214,38 @@ class SetParameterFrame(tk.LabelFrame):
         if pulse is None:
             pulse = self.pulse
         raw_pulse = pulse.eval(**self.params)
-        PulseManager.set_pulse(raw_pulse, notify=False)
-        PulseManager.program(stopping=True)
-        PulseManager.set_pulse(original, notify=False) 
+        try:
+            PulseManager.set_pulse(raw_pulse, notify=False)
+            PulseManager.program(stopping=True)
+            PulseManager.set_pulse(original, notify=False) 
+        except Exception as e:
+            self.main.indicate_error()
+            raise e
 
     def start_seq(self, *args):
         # self.pls_controller.stop() # This is fine to run even if already stopped.
         print("Starting sequence")
-        PulseManager.start()
+        try:
+            PulseManager.start()
+        except Exception as e:
+            self.main.indicate_error()
+            raise e
 
     def stop_seq(self, *args):
         print("Stopping sequence")
-        PulseManager.stop()
+        try:
+            PulseManager.stop()
+        except Exception as e:
+            self.main.indicate_error()
+            raise e
 
             
 
     
 class PulseToolsBox(tk.LabelFrame):
-    def __init__(self, parent, *args, **kwargs):
+    def __init__(self, main_app, parent, *args, **kwargs):
         super(PulseToolsBox, self).__init__(parent, *args, **kwargs) 
+        self.main = main_app
         self.parent = parent
 
         self.init_UI()
@@ -237,7 +253,7 @@ class PulseToolsBox(tk.LabelFrame):
     def init_UI(self):
         # tabs = ttk.Notebook(self)
         # pulse_shape_tab = PulseShapeFrame(tabs)
-        repetitions_tab = RepetitionsFrame(self, text="Repetitions")
+        repetitions_tab = RepetitionsFrame(self.main, self, text="Repetitions")
         # tabs.add(pulse_shape_tab, text="Pulse Shape")
         # tabs.add(repetitions_tab, text="Repetitions")
         repetitions_tab.pack(fill=tk.BOTH, expand=True)

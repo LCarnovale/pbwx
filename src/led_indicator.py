@@ -53,7 +53,6 @@ class IndicatorLED(tk.PanedWindow):
         self.add(canvas, stretch="never", width=self.height)
         c = canvas.winfo_width()
         h = canvas.winfo_height()
-        print(c, h)
         c = self.height
         a, b = 0.1, .8
         self._oval = canvas.create_oval(a*c, a*c, b*c, b*c, fill=COLOUR_OFF)
