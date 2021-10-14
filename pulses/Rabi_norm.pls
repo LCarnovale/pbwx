@@ -13,5 +13,5 @@ pol_time : 15us
 2 (IR)   :                   |                              | excite_t ir_hold ir_fall |                           |                       |                              # IR
 4 (MW-X) :                   | excite_t+green_fall tau 30   |                          |                           |                       |                              # MW-X
 !=== Structure        
-2, 3, 0, 1^N, 2, 3, 5^N, 4
+2, 3, 0, (1, 5)^N, 4
 !=== Comments
