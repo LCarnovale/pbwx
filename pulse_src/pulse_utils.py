@@ -33,10 +33,13 @@ SAFE_MODE = False
 if SAFE_MODE:
     print("SAFE_MODE is enabled, the board will not be programmed.")
 
-class InvalidBoardAction(Exception):
+class PulseBlasterError(Exception):
+    def __init__(self, message):
+        super(PulseBlasterError, self).__init__(message)
+class InvalidBoardAction(PulseBlasterError):
     def __init__(self, message):
         super(InvalidBoardAction, self).__init__(message)
-class ProgrammingError(Exception):
+class ProgrammingError(PulseBlasterError):
     def __init__(self, message, inst=None):
         self.inst = inst
         super(ProgrammingError, self).__init__(message)
@@ -68,7 +71,8 @@ AOM  = (1 << 6) # RF source for AOM
 FLAG_ON  = 1
 FLAG_OFF = 0
 
-LOG_FILE = sys.path[0] + '/' + LOG_FILE
+if sys.path[0]:
+    LOG_FILE = sys.path[0] + '/' + LOG_FILE
 
 def init_board():
     """ Call this before using any other functions in this program. """
@@ -518,22 +522,23 @@ class RawSequence(PulseSequence):
 
         except Exception as e:
             err = 1
-            err_msg = str(e)
+            # err_msg = str(e)
             raise e
         else:
             if self.save_refs:
                 self._refs = refs
+            return err
+
         finally:
             if err:
                 print("Aborting programming, exiting programming mode.")
-                print("Error message: " + err_msg)
+                # print("Error message: " + err_msg)
             else:
                 print("Programming completed successfully. Sequence length: %.2f ms / %d instructions" % (self.length_ns / 1e6, n_insts))
             self.controller.prog_exit()
             if LOG_PROG:
                 log.close()
                 log_n += 1
-            return err
 
     def plot_sequence(self):
         # Get frame flags (ie on/off values for each frame, for each flag)
@@ -606,7 +611,7 @@ def extract_ns(value):
     then the output will be dimensionless nanoseconds. Non time units will raise an error."""
     try:
         value.unit
-    except:
+    except AttributeError:
         return value
     else:
         # The +0 isn't needed but it will catch out non-time units being provided

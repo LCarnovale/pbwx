@@ -337,7 +337,8 @@ if __name__ == '__main__':
     try:
         main()
     except Exception as e:
-        frame.kill_threads()
+        if frame is not None:
+            frame.kill_threads()
         raise e
     # finally:
     #     input("Enter to close")

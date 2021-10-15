@@ -1,5 +1,6 @@
 from enum import Enum
-from pulse_src.pulse_utils import RawSequence, SequenceProgram, init_board
+from pulse_src.pulse_utils import PulseBlasterError, RawSequence, SequenceProgram, init_board
+    
 
 _instance = None
 class PulseManager:
@@ -74,9 +75,15 @@ class PulseManager:
             _instance.notify(event=PulseManager.Event.PREPROGRAM)
         if stopping:
             _instance.stop(notify=False)
-        ret = _instance.pulse.program_seq(*args, **kwargs)
-        if notify:
-            _instance.notify(event=PulseManager.Event.PROGRAM, data=ret)
+        err = None
+        try:
+            _instance.pulse.program_seq(*args, **kwargs)
+        except PulseBlasterError as e:
+            err = e
+            print("Programming failed, Error: %s, message: %s" % (type(e), e))
+        finally:
+            if notify:            
+                _instance.notify(event=PulseManager.Event.PROGRAM, data=err)
 
     @staticmethod
     def start(notify=True):
