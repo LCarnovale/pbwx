@@ -26,16 +26,40 @@ SHORT_PULSE_F = lambda n_periods : (n_periods << 21)
 LONG_PULSE_BITS = 0b111 << 21 # The top 3 bits control the short pulse feature.
                               # Equivalent to SHORT_PULSE_F(7)
 
+MIN_TIME = 5 # ns
 LONG_PULSE_DURATION = 10 # nanoseconds
 log_n = 0
 SAFE_MODE = False
 if SAFE_MODE:
     print("SAFE_MODE is enabled, the board will not be programmed.")
 
+class InvalidBoardAction(Exception):
+    def __init__(self, message):
+        super(InvalidBoardAction, self).__init__(message)
+class ProgrammingError(Exception):
+    def __init__(self, message, inst=None):
+        self.inst = inst
+        super(ProgrammingError, self).__init__(message)
+
+class ShortPulseError(ProgrammingError):
+    def __init__(self, pulse_duration=None, sequence_time=None):
+        """ Both parameters are assumed to be numbers, in nanoseconds
+        """
+        self.pulse_duration = pulse_duration
+        self.sequence_time = sequence_time
+        message = "Error: pulse duration too short, must be greater than %d ns." % MIN_TIME
+        if pulse_duration is not None:
+            message += " [dt = %d ns]" % pulse_duration
+        if sequence_time is not None:
+            message += " [t = %d ns]" % sequence_time
+        super(ShortPulseError, self).__init__(message)
+
+class InvalidInstructionError(ProgrammingError):
+    def __init__(self, message, inst=None):
+        super(InvalidInstructionError, self).__init__(message, inst=inst)
 # # Configure the core clock
 # pb_core_clock(500)
 
-MIN_TIME = 5 # ns
 
 all_bits = 0xFFFFFF
 TRIG = (1 << 7) # Trigger for oscilloscope
@@ -69,7 +93,7 @@ def init_board():
     
 def check_board_init():
     if not SequenceProgram.board_initialised:
-        raise Exception("The board has not yet been initialised (call 'init_board()')")
+        raise InvalidBoardAction("The board has not yet been initialised (call 'init_board()')")
 
 
 class SequenceProgram(threading.Thread):
@@ -96,10 +120,10 @@ class SequenceProgram(threading.Thread):
             self.prog_exit()            
 
         if SequenceProgram.prog_mode:
-            raise Exception("Another thread has the board in programming mode.")
+            raise InvalidBoardAction("Another thread has the board in programming mode.")
 
         if SequenceProgram.running:
-            raise Exception("The board is already running a sequence.")
+            raise InvalidBoardAction("The board is already running a sequence.")
         
         SequenceProgram.running = True
         pb_reset()
@@ -112,10 +136,10 @@ class SequenceProgram(threading.Thread):
         check_board_init()
 
         if SequenceProgram.running:
-            raise Exception("The board is currently running a sequence.")
+            raise InvalidBoardAction("The board is currently running a sequence.")
 
         if SequenceProgram.prog_mode:
-            raise Exception("The board is already in programming mode.")
+            raise InvalidBoardAction("The board is already in programming mode.")
 
         if self.in_prog:
             # Nothing to do
@@ -145,9 +169,9 @@ class SequenceProgram(threading.Thread):
             log=None):
         check_board_init()
         if length < MIN_TIME:
-            raise Exception("Instruction too short - must be at least %d nanoseconds." % MIN_TIME)
+            raise ShortPulseError(pulse_duration=length)
         if not self.in_prog:
-            raise Exception("Must be in programming mode before adding instructions.")
+            raise ProgrammingError("Must be in programming mode before adding instructions.")
         try:
             if length > LONG_PULSE_DURATION:
                 # Currently this should always be the case
@@ -158,16 +182,19 @@ class SequenceProgram(threading.Thread):
                 ctypes.c_int(inst_data), 
                 (length)
             )
-        except Exception as e:
-            raise TypeError("Type conversion failed. Values:\n" 
+        except TypeError:
+            raise InvalidInstructionError("Type conversion failed. Values:\n" 
                 f"flags: 0b{flags:b}\n"
                 f"inst:  {inst}\n"
                 f"inst_data:  {inst_data}\n"
-                f"length:  {length}\n"
-                "Message: "+str(e))
+                f"length:  {length}\n")
+                # "Message: "+str(e))
         self.inst_seq.append(inst)
         if log is not None:
-            log.write(f"[{flags:08b}] inst: {inst[1].value} inst_data: {inst[2].value} dt: {int(inst[3])} \n")
+            try:
+                log.write(f"[{flags:08b}] inst: {inst[1].value} inst_data: {inst[2].value} dt: {int(inst[3])} \n")
+            except EnvironmentError as e:
+                print("Error writing to log:", e)
         # print([type(x) for x in inst])
         if not SAFE_MODE:
             return pb_inst_pbonly(*inst)
@@ -267,7 +294,10 @@ class PulseSequence:
         self.bit_names = {}
 
     def set_controller(self, controller):
-        self._controller = controller
+        if type(controller) != SequenceProgram:
+            raise TypeError("Controller must be a SequenceProgram object.")
+        else:
+            self._controller = controller
 
     def add_raw(self, raw_seq):
         if type(raw_seq) is not RawSequence:
@@ -429,7 +459,7 @@ class RawSequence(PulseSequence):
             for i in range(len(sequence)):
                 try:
                     sequence[i] = sequence[i].to('ns').value 
-                except:
+                except ValueError:
                     pass
 
         for flag, seq in zip(flags, sequences):
@@ -488,6 +518,7 @@ class RawSequence(PulseSequence):
 
         except Exception as e:
             err = 1
+            err_msg = str(e)
             raise e
         else:
             if self.save_refs:
@@ -495,6 +526,7 @@ class RawSequence(PulseSequence):
         finally:
             if err:
                 print("Aborting programming, exiting programming mode.")
+                print("Error message: " + err_msg)
             else:
                 print("Programming completed successfully. Sequence length: %.2f ms / %d instructions" % (self.length_ns / 1e6, n_insts))
             self.controller.prog_exit()
