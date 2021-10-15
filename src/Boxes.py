@@ -1,17 +1,13 @@
 import os
-import socket
 import tkinter as tk
 import tkinter.ttk as ttk
-from threading import Thread
 
-import numpy as np
 from pulse_src import load_pulse as loader
-from pulse_src import pulse_utils as pu
-from sock import HOST, PORT
+
 from src.extras import parse_val
 
 from .pulse_instance import PulseManager
-from .PulseFrames import PulseShapeFrame, RepetitionsFrame
+from .PulseFrames import RepetitionsFrame
 
 _SelPF_instance = None
 class SelectPulseFrame(tk.LabelFrame):
@@ -257,3 +253,21 @@ class PulseToolsBox(tk.LabelFrame):
         # tabs.add(pulse_shape_tab, text="Pulse Shape")
         # tabs.add(repetitions_tab, text="Repetitions")
         repetitions_tab.pack(fill=tk.BOTH, expand=True)
+
+class PinControls(tk.LabelFrame):
+    def __init__(self, main_app, parent, n_cols=4, *args, **kwargs):
+        super(PinControls, self).__init__(parent, *args,)
+        self.parent = parent
+        self.main = main_app
+        self.n_cols = n_cols
+        self.def_label = tk.Label(self, text="Select a pulse")
+
+    def update_ui(self):
+        pulse = PulseManager.get_pulse()
+
+        if pulse is None:
+            self.def_label.grid(row=0, column=0)
+        else:
+            self.def_label.grid_forget()
+            
+    

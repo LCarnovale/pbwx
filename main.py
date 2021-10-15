@@ -1,13 +1,16 @@
+import socket
 import sys
 import time
 import tkinter as tk
 import tkinter.font as tf
+from threading import Thread
+from pulse_src.spinapi import DBG_MODE
 
 import pulse_src.load_pulse as lp
-# import pulse_src as pls
 import pulse_src.pulse_utils as pls
 import src.Boxes
 import src.PulseFrames
+from sock import HOST, PORT
 from src.Boxes import *
 from src.led_indicator import IndicatorLED
 from src.pulse_instance import PulseManager as PM
@@ -47,6 +50,8 @@ class AppFrame(tk.Tk):
         self.prog_ready = tk.BooleanVar(self, False) # Program ready and waiting for labview to accept.
         self.ir_when_off = tk.BooleanVar(self, IR_WHEN_OFF) # Run IR_ON.pls during downtime? 
         self.wait_for_LV = tk.BooleanVar(self, True) # Wait for labview to accept programs?
+        if DBG_MODE:
+            self.wait_for_LV.set(False)
         self.LV_connected = tk.BooleanVar(self, False)
         self.err_light = tk.BooleanVar(self, False)
 

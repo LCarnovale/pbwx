@@ -22,11 +22,13 @@ from .spinapi import *
     
 LOG_PROG = True
 LOG_FILE = "logs/program_log"
-SHORT_PULSE_F = lambda n_periods : (n_periods << 21)
+SHORT_PULSE_F = lambda n_periods: (int(n_periods) << 21)
 LONG_PULSE_BITS = 0b111 << 21 # The top 3 bits control the short pulse feature.
                               # Equivalent to SHORT_PULSE_F(7)
 
-MIN_TIME = 5 # ns
+SHORT_PULSE_ALLOWED = False # Allow pulses that require the short pulse feature
+PB_CLOCK_PERIOD = 2 # ns
+MIN_TIME = PB_CLOCK_PERIOD # ns
 LONG_PULSE_DURATION = 10 # nanoseconds
 log_n = 0
 SAFE_MODE = False
@@ -171,15 +173,26 @@ class SequenceProgram(threading.Thread):
 
     def add_instruction(self, flags:np.int32, inst:Inst, inst_data:np.int32, length:np.float64,
             log=None):
+        """Lenth must be in nanoseconds. """
         check_board_init()
-        if length < MIN_TIME:
+        if length < LONG_PULSE_DURATION:
+            if SHORT_PULSE_ALLOWED:
+                n_periods = length // PB_CLOCK_PERIOD
+            else:
+                raise InvalidInstructionError(
+                    "Short pulse feature disabled, minimum pulse length is %d" % LONG_PULSE_DURATION
+                )
+        elif length < MIN_TIME:
             raise ShortPulseError(pulse_duration=length)
+        # else:
+        #     n_periods = 7 # sets all 3 top bits on, disabling short pulse feature 
         if not self.in_prog:
             raise ProgrammingError("Must be in programming mode before adding instructions.")
         try:
             if length > LONG_PULSE_DURATION:
-                # Currently this should always be the case
                 flags |= LONG_PULSE_BITS
+            else:
+                flags |= SHORT_PULSE_F(n_periods)
             inst = (
                 ctypes.c_int(flags), 
                 ctypes.c_int(inst), 

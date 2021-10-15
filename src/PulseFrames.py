@@ -88,6 +88,7 @@ class RepetitionsFrame(tk.LabelFrame):
 
         prog_button = tk.Button(rep_options, text="Program",
             command=self.program_seq)
+        self.prog_button = prog_button
         prog_button.grid(row=2, column=1, sticky=tk.W+tk.E)
         plot_button = tk.Button(rep_options, text="Plot",
             command=self.plot_sequence)
@@ -114,6 +115,10 @@ class RepetitionsFrame(tk.LabelFrame):
         if event == PulseManager.Event.PULSE:
             pulse_obj = PulseManager.get_pulse()
             self.init_param_list(pulse_obj)
+        if event == PulseManager.Event.START:
+            self.prog_button.config(state=tk.DISABLED)
+        if event == PulseManager.Event.STOP:
+            self.prog_button.config(state=tk.ACTIVE)
         
     def init_param_list(self, pulse_obj=None):
         for e in self.to_remove:
