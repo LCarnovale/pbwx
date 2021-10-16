@@ -1,7 +1,7 @@
 === Params ===
 excite_t : 3000ns
 green_delay: 460ns
-green_fall: 300ns
+green_fall: 100ns
 ir_hold: 0.2ms
 ir_fall: 50us
 pol_time : 15us
