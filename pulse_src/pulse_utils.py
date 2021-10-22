@@ -9,31 +9,25 @@ from scipy import interpolate
 from . import _actions as actions
 from .spinapi import *
 
-# try:
-# except ImportError:
-#     raise Exception()
-#     try:
-#         from pbwx.spinapi import *
-#     except ImportError as e:
-#         e.msg = "Unable to find spinapi module in " \
-#                 "pbwx package or local directory."
-#         raise e
-        
-    
 LOG_PROG = True
 LOG_FILE = "logs/program_log"
-SHORT_PULSE_F = lambda n_periods: (int(n_periods) << 21)
-LONG_PULSE_BITS = 0b111 << 21 # The top 3 bits control the short pulse feature.
-                              # Equivalent to SHORT_PULSE_F(7)
 
 SHORT_PULSE_ALLOWED = False # Allow pulses that require the short pulse feature
-PB_CLOCK_PERIOD = 2 # ns
-MIN_TIME = PB_CLOCK_PERIOD # ns
-LONG_PULSE_DURATION = 10 # nanoseconds
-log_n = 0
-SAFE_MODE = False
+PB_CLOCK_PERIOD = 2         # nanoseconds, PB resolution
+MIN_TIME = 10               # nanoseconds, absolute minimum instruction length, 
+                            # Instructions shorter than this will raise a ShortPulseException
+LONG_PULSE_DURATION = 10    # nanoseconds, shortest pulse length that does not use the short pulse feature
+SAFE_MODE = False           # Prevent any instructions actually going to the Pulse Blaster
+log_n = 0                   # Log file number
+
+# The top 3 bits control the short pulse feature.
+SHORT_PULSE_F = lambda n_periods: (int(n_periods) << 21)
+LONG_PULSE_BITS = SHORT_PULSE_F(7) 
+
 if SAFE_MODE:
     print("SAFE_MODE is enabled, the board will not be programmed.")
+
+assert MIN_TIME >= PB_CLOCK_PERIOD, "MIN_TIME must be at least equal to PB_CLOCK_PERIOD"
 
 class PulseBlasterError(Exception):
     def __init__(self, message):
@@ -46,7 +40,7 @@ class ProgrammingError(PulseBlasterError):
         self.inst = inst
         super(ProgrammingError, self).__init__(message)
 
-class ShortPulseError(ProgrammingError):
+class ShortPulseException(ProgrammingError):
     def __init__(self, pulse_duration=None, sequence_time=None):
         """ Both parameters are assumed to be numbers, in nanoseconds
         """
@@ -57,7 +51,7 @@ class ShortPulseError(ProgrammingError):
             message += " [dt = %d ns]" % pulse_duration
         if sequence_time is not None:
             message += " [t = %d ns]" % sequence_time
-        super(ShortPulseError, self).__init__(message)
+        super(ShortPulseException, self).__init__(message)
 
 class InvalidInstructionError(ProgrammingError):
     def __init__(self, message, inst=None):
@@ -106,6 +100,7 @@ class SequenceProgram(threading.Thread):
     prog_mode = False
     running = False
     board_initialised = False
+    extend_short_pulses = True
 
     def __init__(self, name=None):
         threading.Thread.__init__(self)#, group=None)
@@ -175,6 +170,9 @@ class SequenceProgram(threading.Thread):
             log=None):
         """Lenth must be in nanoseconds. """
         check_board_init()
+        if length < MIN_TIME and self.extend_short_pulses:
+            print(f"Warning - Extended pulse with flags: {flags:b}")
+            length = MIN_TIME
         if length < LONG_PULSE_DURATION:
             if SHORT_PULSE_ALLOWED:
                 n_periods = length // PB_CLOCK_PERIOD
@@ -183,16 +181,16 @@ class SequenceProgram(threading.Thread):
                     "Short pulse feature disabled, minimum pulse length is %d" % LONG_PULSE_DURATION
                 )
         elif length < MIN_TIME:
-            raise ShortPulseError(pulse_duration=length)
+            raise ShortPulseException(pulse_duration=length)
         # else:
         #     n_periods = 7 # sets all 3 top bits on, disabling short pulse feature 
         if not self.in_prog:
             raise ProgrammingError("Must be in programming mode before adding instructions.")
         try:
-            if length > LONG_PULSE_DURATION:
-                flags |= LONG_PULSE_BITS
-            else:
+            if length < LONG_PULSE_DURATION:
                 flags |= SHORT_PULSE_F(n_periods)
+            else:
+                flags |= LONG_PULSE_BITS
             inst = (
                 ctypes.c_int(flags), 
                 ctypes.c_int(inst), 

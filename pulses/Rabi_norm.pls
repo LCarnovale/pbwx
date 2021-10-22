@@ -1,12 +1,12 @@
 === Params ===
 excite_t : 3000ns
-green_delay: 460ns
+green_delay: 550ns
 green_fall: 100ns
 ir_hold: 0.2ms
-ir_fall: 50us
+ir_fall: 40us
 pol_time : 15us
-rf_fall : 20ns
-tau : 20ns
+rf_fall : 50ns
+tau : 50ns
 !=============
 #             0                             1                              2                            3                         4                      5                  6
 #        Trig + wait           pol + tau/RF + wait 30ns                 hold + ir fall           Polarise + wait             First  pol       normalisation, no MW          Deadtime
