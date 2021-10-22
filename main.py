@@ -260,7 +260,10 @@ class SocketThread(Thread):
     def con_alive(self, value:bool):
         self._con_alive = value
         if self.connected_var is not None:
-            self.connected_var.set(value)
+            try:
+                self.connected_var.set(value)
+            except RuntimeError as e:
+                print("Unable to set connection status: " + str(e))
 
     def stop_wait(self):
         self.do_wait = False
@@ -272,7 +275,8 @@ class SocketThread(Thread):
     def run(self):
         # Wait for data to be received
         self.socket.listen()
-        self.con_alive = False
+        if self.con_alive:
+            self.con_alive = False
         
         print("Socket thread waiting for connection.")
         while True:
