@@ -51,6 +51,7 @@ class SelectPulseFrame(tk.LabelFrame):
         else:
             print("Loaded pulse:", self.pulse)
             PulseManager.set_pulse(self.pulse)
+            PulseManager.pulse_name = self.selected_file.get()
         
 
 

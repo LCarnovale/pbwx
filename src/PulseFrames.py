@@ -118,13 +118,19 @@ class RepetitionsFrame(tk.LabelFrame):
         
         save_btn = tk.Button(rep_options, text="Save Params", command=self.save_params)
         save_btn.grid(row=row_n+1, column=1, sticky=tk.W+tk.E)
+        # Save pulse
+        save_pls_btn = tk.Button(rep_options, text="Save Pulse", command=self.save_pulse)
+        save_pls_btn.grid(row=row_n+2, column=1, sticky=tk.W+tk.E)
+
+
+
 
     def save_params(self, *args):
         n = self.exp_num_var.get()
         self.exp_num_var.set(str(int(n) + 1))
         
         today = date.today()
-        f_name = f"{today}-{n}_params"
+        f_name = f"{today}-{n}_params.txt"
         f_name = PARAM_SAVE_FOLDER + f_name
 
         # Get parameters
@@ -135,8 +141,10 @@ class RepetitionsFrame(tk.LabelFrame):
         n_reps = int(self.reps_num.get())
 
         rep_mode = self.progression_type.get()
-
-        body = "\n".join([f"{var}: {start_vars[var]} -> {end_vars[var]}" for (var) in start_vars if var in end_vars])
+        body = f"Sequence: {PulseManager.pulse_name}"
+        body += "\n----"
+        body += "\n".join([f"{var}: {start_vars[var]} -> {end_vars[var]}" for (var) in start_vars if var in end_vars])
+        body += "\n----"
         body += "\n" + "n_reps: " + str(n_reps)
         body += "\n" + "progression: " + str(rep_mode)
 
@@ -145,8 +153,30 @@ class RepetitionsFrame(tk.LabelFrame):
                 f.write(body)
         except IOError as e:
             print("Failed to sve parameters: " + str(e))
+            self.main.indicate_error()
         else:
             pass
+
+    def save_pulse(self, *args):
+        n = self.exp_num_var.get()
+        
+        today = date.today()
+        f_name = f"{today}-{n}_pulse.txt"
+        f_name = PARAM_SAVE_FOLDER + f_name
+
+        # Get pulse
+        pulse = self.eval_pulse()
+        try:
+            pulse.save_txt(f_name)
+        except IOError as e:
+            print("Failed to save pulse: " + str(e))
+            self.main.indicate_error()
+        except Exception as e:
+            print("Error: " + str(e))
+            self.main.indicate_error()
+        else:
+            pass
+
 
     def notify(self, event=None, data=None):
         if event == PulseManager.Event.PULSE:

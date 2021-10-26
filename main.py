@@ -38,7 +38,10 @@ class AppFrame(tk.Tk):
                 PULSE_FOLDER = sys.path[0] + "/./" + PULSE_FOLDER
                 os.listdir(PULSE_FOLDER)
             except:
+                
                 raise FileNotFoundError("Unable to find pulse folder.")
+            else:
+                src.PulseFrames.PARAM_SAVE_FOLDER = sys.path[0] + "/" + src.PulseFrames.PARAM_SAVE_FOLDER
 
         self.pls_controller = pls.SequenceProgram("Main sequence")
         PM.set_controller(self.pls_controller)

@@ -573,6 +573,26 @@ class RawSequence(PulseSequence):
         plt.legend([str(i) for i in flag_nums])
         plt.show()
 
+    def save_txt(self, fname):
+        """ Save frames as a text file, with the first column
+        containing the frame duration, followed by a column for each
+        non-empty flag containing 1 or 0 for On or Off.
+
+        The first row will be dt, n... where n is each non-empty flag.
+        """
+        # Get frame flags (ie on/off values for each frame, for each flag)
+        t_ax, frames = self._merge_sequences()
+        # Pick the flags which are not all zeros
+        nonz_flags = np.array([k for k, v in self.flag_seqs.items() if v is not None])
+        # Get flag numbers to write in file
+        flag_nums = np.arange(frames.shape[1])
+        flag_nums = flag_nums[nonz_flags]
+        # Exclude frames which are all zero
+        frames = frames[:,nonz_flags]
+        full = np.concatenate([t_ax.reshape(-1, 1), frames], axis=1)
+        header = ",".join(["dt", *[str(x) for x in flag_nums]])
+        np.savetxt(fname, full, fmt="%d", delimiter=",", header=header, comments="")
+        
     def _merge_sequences(self):
         """ Merge the current sequences to create flag frames,
         intended to be used by the PulseSequence class. 

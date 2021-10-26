@@ -4,6 +4,8 @@ from pulse_src.pulse_utils import PulseBlasterError, RawSequence, SequenceProgra
 
 _instance = None
 class PulseManager:
+    pulse_name = None
+
     Event = Enum(
         value="Event",
         names="PULSE CONTROLLER START STOP PROGRAM PREPROGRAM"   # New pulse, controller
@@ -17,6 +19,7 @@ class PulseManager:
         self.controller = controller
         self.observers = []
         self.vars = {}
+        # self.pulse_name = None
         _instance = self
 
     def notify(self, event=None, data=None):
