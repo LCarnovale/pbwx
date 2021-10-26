@@ -3,10 +3,13 @@ from src.extras import parse_val
 from src.pulse_instance import PulseManager
 import tkinter as tk
 import tkinter.ttk as ttk
+from datetime import date
 from . import Boxes
 _PSF_instance = None
 WIDTH = 1 # Will be set from main.py
 HEIGHT = 1
+
+PARAM_SAVE_FOLDER = "./saved_params/"
 class PulseShapeFrame(ttk.Frame):
     def __init__(self, parent, **kwargs):
         global _PSF_instance
@@ -103,13 +106,47 @@ class RepetitionsFrame(tk.LabelFrame):
         pane.add(rep_options, stretch="always", width=WIDTH//2)
         self.param_list = param_list
         self.init_param_list()
+        rep_options.grid_rowconfigure(5, minsize=20)
+        row_n = 6
 
-        # options = tk.Frame(pane, background="green")
-        # label2 = tk.Label(options, text="Repition Options")
-        # label2.grid(row=0, column=0, sticky=tk.E)
-        # pane.add(options, stretch="always")
-        # options.pack(fill=tk.BOTH, expand=True)
-        # self.options_pane = options
+        # Save params controls
+        self.exp_num_var = tk.StringVar(rep_options, "1")
+        exp_number = tk.Spinbox(rep_options, textvariable=self.exp_num_var, 
+            from_=1, to=999, increment=1)
+        exp_number.grid(row=row_n, column=1, sticky=tk.W+tk.E)
+        tk.Label(rep_options, text="Experiment number:").grid(row=row_n, column=0)
+        
+        save_btn = tk.Button(rep_options, text="Save Params", command=self.save_params)
+        save_btn.grid(row=row_n+1, column=1, sticky=tk.W+tk.E)
+
+    def save_params(self, *args):
+        n = self.exp_num_var.get()
+        self.exp_num_var.set(str(int(n) + 1))
+        
+        today = date.today()
+        f_name = f"{today}-{n}_params"
+        f_name = PARAM_SAVE_FOLDER + f_name
+
+        # Get parameters
+        pulse_obj = PulseManager.get_pulse()
+        start_vars = pulse_obj.params
+
+        end_vars = self.end_vars
+        n_reps = int(self.reps_num.get())
+
+        rep_mode = self.progression_type.get()
+
+        body = "\n".join([f"{var}: {start_vars[var]} -> {end_vars[var]}" for (var) in start_vars if var in end_vars])
+        body += "\n" + "n_reps: " + str(n_reps)
+        body += "\n" + "progression: " + str(rep_mode)
+
+        try:
+            with open(f_name, "w") as f:
+                f.write(body)
+        except IOError as e:
+            print("Failed to sve parameters: " + str(e))
+        else:
+            pass
 
     def notify(self, event=None, data=None):
         if event == PulseManager.Event.PULSE:
