@@ -142,7 +142,7 @@ class RepetitionsFrame(tk.LabelFrame):
 
         rep_mode = self.progression_type.get()
         body = f"Sequence: {PulseManager.pulse_name}"
-        body += "\n----"
+        body += "\n----\n"
         body += "\n".join([f"{var}: {start_vars[var]} -> {end_vars[var]}" for (var) in start_vars if var in end_vars])
         body += "\n----"
         body += "\n" + "n_reps: " + str(n_reps)
