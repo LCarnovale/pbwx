@@ -176,10 +176,14 @@ class AppFrame(tk.Tk):
         if event == PM.Event.START:
             self.pb_running.set(True)
         if event == PM.Event.STOP:
+            
             self.trap_state.set(False)
             self.pb_running.set(False)
 
             if self.ir_when_off.get():
+                # Start PB incase loading a new pulse is slow
+                PM.start()
+
                 # Restart IR sequence
                 print("Restoring Trap-on state")
                 original = PM.get_pulse()
@@ -187,7 +191,7 @@ class AppFrame(tk.Tk):
                 # Set this as the pulse, don't notify because we don't want
                 # to change anything on the frontend.
                 PM.set_pulse(pulse, notify=False)
-                err = PM.program(notify=False)
+                err = PM.program(notify=False, stopping=True)
                 if err:
                     raise Exception("Failed to program IR_ON.pls, program can not continue.")
                 PM.start(notify=False)

@@ -147,7 +147,7 @@ if __name__ == "__main__":
     # a = p.eval(N=5)
     # p = read_pulse_file("pulses/test.pls")
     a = p.eval(N=4, M=64, tau=np.linspace(12, 2000, 64))
-    a.plot_sequence()
+    a.save_txt("pulses/test.txt")
 
     
 

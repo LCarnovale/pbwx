@@ -13,7 +13,7 @@ tau : 50ns
 0 (Trig) :  0 200 100        |                                      |                          |                           |             | 20us
 1 (Green):                   | green_fall+tau+rf_fall green_fall+excite_t   |                  | 0 pol_time green_delay    | 0 excite_t  |
 2 (IR)   :                   |                                      | excite_t ir_hold ir_fall |                           |             |
-4 (MW-X) :                   | green_fall+green_delay tau           |                          |                           |             |
+4 (MW-X) :                   | green_fall+green_delay 0 tau         |                          |                           |             |
 !=== Structure
 2, 3, 0, 4, 1^N, 5
 !=== Comments
