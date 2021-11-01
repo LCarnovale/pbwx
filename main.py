@@ -13,7 +13,7 @@ import src.PulseFrames
 from sock import HOST, PORT
 from src.Boxes import *
 from src.led_indicator import IndicatorLED
-from src.pulse_instance import PulseManager as PM
+from src.pulse_instance import PulseManager as PM, PulseManagerException
 
 PULSE_FOLDER = "pulses"
 IR_WHEN_OFF = True
@@ -105,8 +105,7 @@ class AppFrame(tk.Tk):
         button_pane.grid_columnconfigure(1, weight=1)
         button_pane.grid_columnconfigure(2, weight=1)
         button_pane.grid_columnconfigure(3, weight=1)
-        # prog_start_btn = tk.Button(button_pane, text="Program & Start", command=self.prog_and_start, **btn_size)
-        # prog_start_btn.grid(row=0, column=0)
+
         variables = [
             self.trap_state, self.pb_running, self.prog_ready, self.LV_connected
         ]
@@ -182,7 +181,11 @@ class AppFrame(tk.Tk):
 
             if self.ir_when_off.get():
                 # Start PB incase loading a new pulse is slow
-                PM.start()
+                try:
+                    PM.start()
+                except PulseManagerException:
+                    # If this happens we don't need to worry about the old pulse. (There isn't one)
+                    pass
 
                 # Restart IR sequence
                 print("Restoring Trap-on state")
@@ -231,6 +234,9 @@ class AppFrame(tk.Tk):
         else:
             # self.stop_btn.config(state=tk.DISABLED)
             self.start_btn.config(state=tk.ACTIVE)
+
+        # One last check to make sure the PB running light and variable are in sync
+        self.pb_running.set(self.pls_controller.running) 
                     
     def prog_and_start(self, *args):
         # Get current pulse

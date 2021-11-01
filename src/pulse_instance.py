@@ -2,8 +2,14 @@ from enum import Enum
 from pulse_src.pulse_utils import PulseBlasterError, RawSequence, SequenceProgram, init_board
     
 
+class PulseManagerException(Exception):
+    """ Common base class for exceptions in this module. """
+    def __init__(self, message):
+        super().__init__(message)
+    
 _instance = None
 class PulseManager:
+    """ Singleton instance for the PulseManager class. """
     pulse_name = None
 
     Event = Enum(
@@ -13,7 +19,7 @@ class PulseManager:
     def __init__(self, pulse:RawSequence=None, controller:SequenceProgram=None):
         global _instance
         if _instance is not None:
-            raise RuntimeError("Cannot initialise multiple instances of PulseManager.")
+            raise PulseManagerException("Cannot initialise multiple instances of PulseManager.")
         init_board()
         self.pulse = pulse
         self.controller = controller
@@ -22,13 +28,25 @@ class PulseManager:
         # self.pulse_name = None
         _instance = self
 
+    # def __new__(cls, *args, **kwargs):
+    #     global _instance
+    #     if _instance is None:
+    #         _instance = super().__new__(cls)
+    #     return _instance
+
     def notify(self, event=None, data=None):
         for obj in self.observers:
             obj.notify(event=event, data=data)
 
+    def _set_param_default(self, **kwargs):
+        self.pulse.set_param_default(**kwargs)
+
     @staticmethod
     def set_param_default(**kw_params):
         _instance.pulse.set_param_default(**kw_params)
+
+    def _register(self, observer):
+        self.observers.append(observer)
 
     @staticmethod
     def register(observer):
@@ -40,9 +58,20 @@ class PulseManager:
         if _instance is None:
             _instance = PulseManager()
     
+    def _get_pulse(self):
+        return self.pulse
+    
     @staticmethod
     def get_pulse():
         return _instance.pulse
+
+    def _set_pulse(self, pulse:RawSequence, notify=True):
+        if self.controller is not None and pulse is not None:
+            pulse.set_controller(self.controller)
+
+        self.pulse = pulse
+        if notify:
+            self.notify(event=PulseManager.Event.PULSE)
 
     @staticmethod
     def set_pulse(pulse:RawSequence, notify=True):
@@ -89,15 +118,26 @@ class PulseManager:
                 _instance.notify(event=PulseManager.Event.PROGRAM, data=err)
 
     @staticmethod
-    def start(notify=True):
-        print("O-O-O  Sequence RUNNING  O-O-O ")
-        _instance.pulse.start()
-        # try:
-            # _instance.pulse.start()
-        # except Exception as e:
-            # main.indicate_error()
-            # raise e
+    def start(notify=True, allow_controller_start=False):
+        """ Send a start request to the attached pulse.
+        
+        If `allow_controller_start=True` (default `False`), and there is no
+        attached pulse, then the controller will be sent a start request.
 
+        If the pulse and/or controller is None, a PulseManagerException will be raised. """
+        if _instance.pulse is not None:
+            print("O-O-O Sequence STARTED O-O-O")
+            _instance.pulse.start()
+        else:
+            if not allow_controller_start:
+                raise PulseManagerException("No pulse attached.")            
+            else:
+                if _instance.controller is not None:
+                    print("O-O-O Sequence STARTED O-O-O")
+                    _instance.controller.run()
+                else:
+                    raise PulseManagerException("No controller attached.")
+     
         if notify:
             _instance.notify(event=PulseManager.Event.START)
 

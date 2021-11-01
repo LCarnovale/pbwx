@@ -6,7 +6,7 @@ from pulse_src import load_pulse as loader
 
 from src.extras import parse_val
 
-from .pulse_instance import PulseManager
+from .pulse_instance import PulseManager, PulseManagerException
 from .PulseFrames import RepetitionsFrame
 
 _SelPF_instance = None
@@ -220,13 +220,18 @@ class SetParameterFrame(tk.LabelFrame):
             raise e
 
     def start_seq(self, *args):
-        # self.pls_controller.stop() # This is fine to run even if already stopped.
-        print("Starting sequence")
         try:
             PulseManager.start()
-        except Exception as e:
-            self.main.indicate_error()
-            raise e
+        except PulseManagerException:
+            try:
+                PulseManager.start(allow_controller_start=True)
+            except PulseManagerException as e:
+                self.main.indicate_error()
+                raise e
+            else:
+                print("Starting sequence (Note: Starting Unknown Sequence)")
+        else:
+            print("Starting sequence")
 
     def stop_seq(self, *args):
         print("Stopping sequence")
